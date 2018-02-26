@@ -96,7 +96,21 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.amount, test_deser.amount)
         self.assertEqual(msg, test_deser)
 
+    async def test_txin_variant(self):
+        """
+        TxInV
+        :return:
+        """
+        msg1 = xmr.TxinToKey(amount=123, key_offsets=[1, 2, 3, 2**76], k_image=bytearray(range(32)))
+        msg = xmr.TxInV(txin_to_key=msg1)
 
+        writer = x.MemoryReaderWriter()
+        await x.dump_variant(writer, msg)
+
+        test_deser = await x.load_variant(x.MemoryReaderWriter(writer.buffer), xmr.TxInV)
+        self.assertEqual(msg, test_deser)
+        self.assertEqual(msg.variant_elem, test_deser.variant_elem)
+        self.assertEqual(msg.variant_elem_type, test_deser.variant_elem_type)
 
 
 if __name__ == "__main__":
