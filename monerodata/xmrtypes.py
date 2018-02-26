@@ -36,6 +36,7 @@ class ECPoint(x.BlobType):
 
 
 class TxoutToScript(x.MessageType):
+    __slots__ = ['keys', 'script']
     VARIANT_CODE = 0x0
     FIELDS = [
         ('keys', x.ContainerType, ECPoint),
@@ -44,6 +45,7 @@ class TxoutToScript(x.MessageType):
 
 
 class TxoutToKey(x.MessageType):
+    __slots__ = ['key']
     VARIANT_CODE = 0x2
     FIELDS = [
         ('key', ECPoint),
@@ -51,7 +53,7 @@ class TxoutToKey(x.MessageType):
 
 
 class TxoutToScriptHash(x.MessageType):
-    __slots__ = []
+    __slots__ = ['hash']
     VARIANT_CODE = 0x1
     FIELDS = [
         ('hash', Hash),
@@ -106,6 +108,7 @@ class TxInV(x.VariantType):
 
 
 class TxOut(x.MessageType):
+    __slots__ = ['amount', 'target']
     FIELDS = [
         ('amount', x.UVarintType),
         ('target', TxoutTargetV),
