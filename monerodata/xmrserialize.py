@@ -696,11 +696,11 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
     for field in elem_type.FIELDS:
         ftype = field[1]
         if ftype.VARIANT_CODE == tag:
-            params = field[2:]
-            fvalue = await field_archiver(reader, ftype, params, elem if not is_wrapped else None)
+            fvalue = await field_archiver(reader, ftype, field[2:], elem if not is_wrapped else None)
             if is_wrapped:
                 elem.set_variant(field[0], fvalue)
-    return elem if is_wrapped else fvalue
+            return elem if is_wrapped else fvalue
+    raise ValueError('Unkown tag: %s' % tag)
 
 
 async def dump_field(writer, elem, elem_type, params=None):
