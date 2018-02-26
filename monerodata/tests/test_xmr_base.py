@@ -107,7 +107,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_variant(writer, msg)
 
-        test_deser = await x.load_variant(x.MemoryReaderWriter(writer.buffer), xmr.TxInV)
+        test_deser = await x.load_variant(x.MemoryReaderWriter(writer.buffer), xmr.TxInV, wrapped=True)
         self.assertEqual(test_deser.__class__, xmr.TxInV)
         self.assertEqual(msg, test_deser)
         self.assertEqual(msg.variant_elem, test_deser.variant_elem)
@@ -119,14 +119,14 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         :return:
         """
         vin = [
-            xmr.TxInV(xmr.TxinToKey(amount=123, key_offsets=[1, 2, 3, 2 ** 76], k_image=bytearray(range(32)))),
-            xmr.TxInV(xmr.TxinToKey(amount=456, key_offsets=[9, 8, 7, 6], k_image=bytearray(range(32, 64)))),
-            xmr.TxInV(xmr.TxinGen(height=99))
+            xmr.TxinToKey(amount=123, key_offsets=[1, 2, 3, 2 ** 76], k_image=bytearray(range(32))),
+            xmr.TxinToKey(amount=456, key_offsets=[9, 8, 7, 6], k_image=bytearray(range(32, 64))),
+            xmr.TxinGen(height=99)
         ]
 
         vout = [
-            xmr.TxOut(amount=11, target=xmr.TxoutTargetV(xmr.TxoutToKey(key=bytearray(range(32))))),
-            xmr.TxOut(amount=34, target=xmr.TxoutTargetV(xmr.TxoutToKey(key=bytearray(range(64,96))))),
+            xmr.TxOut(amount=11, target=xmr.TxoutToKey(key=bytearray(range(32)))),
+            xmr.TxOut(amount=34, target=xmr.TxoutToKey(key=bytearray(range(64,96)))),
         ]
 
         msg = xmr.TransactionPrefix(version=2, unlock_time=10, vin=vin, vout=vout, extra=list(range(31)))
@@ -142,9 +142,9 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(len(test_deser.vout), len(msg.vout))
         self.assertEqual(len(test_deser.extra), len(msg.extra))
         self.assertEqual(test_deser.extra, msg.extra)
-        self.assertEqual(test_deser, msg)
         self.assertListEqual(test_deser.vin, msg.vin)
         self.assertListEqual(test_deser.vout, msg.vout)
+        self.assertEqual(test_deser, msg)
 
 
 if __name__ == "__main__":

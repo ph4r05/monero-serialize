@@ -179,8 +179,10 @@ class VariantType:
     """
     Union of types, variant tags needed. is only one of the types. List in typedef, enum.
     Wraps the variant type in order to unambiguously support variant of variants.
+    Supports also unwrapped value using type system to distinguish variants - simplifies the construction.
     """
     WIRE_TYPE = 5
+    WRAPS_VALUE = False
     FIELDS = []
 
     def __init__(self, *args, **kwargs):
@@ -189,15 +191,16 @@ class VariantType:
 
         fname, fval = None, None
         if len(args) > 0:
-            fname, fval = self.find_fdef(args[0])[0], args[0]
+            fname, fval = self.find_fdef(self.FIELDS, args[0])[0], args[0]
         if len(kwargs) > 0:
             key = list(kwargs.keys())[0]
             fname, fval = key, kwargs[key]
         if fname:
             self.set_variant(fname, fval)
 
-    def find_fdef(self, elem):
-        for x in self.FIELDS:
+    @staticmethod
+    def find_fdef(fields, elem):
+        for x in fields:
             if isinstance(elem, x[1]):
                 return x
         raise ValueError('Unrecognized variant')
@@ -668,25 +671,36 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
         return await elem.serialize_dump(writer)
 
     field_archiver = field_archiver if field_archiver else dump_field
-    await dump_uvarint(writer, elem.variant_elem_type.VARIANT_CODE)
-    await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
+    if isinstance(elem, VariantType) or elem_type.WRAPS_VALUE:
+        await dump_uvarint(writer, elem.variant_elem_type.VARIANT_CODE)
+        await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
+
+    else:
+        fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+        await dump_uvarint(writer, fdef[1].VARIANT_CODE)
+        await field_archiver(writer, elem, fdef[1])
 
 
-async def load_variant(reader, elem_type, params=None, elem=None, field_archiver=None):
-    elem = elem_type() if elem is None else elem
+async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, field_archiver=None):
     if hasattr(elem_type, 'serialize_load'):
+        elem = elem_type() if elem is None else elem
         return await elem.serialize_load(reader)
 
+    is_wrapped = (isinstance(elem, VariantType) or elem_type.WRAPS_VALUE) if wrapped is None else wrapped
+    if is_wrapped:
+        elem = elem_type() if elem is None else elem
+
+    fvalue = None
     field_archiver = field_archiver if field_archiver else load_field
     tag = await load_uvarint(reader)
     for field in elem_type.FIELDS:
-        fname = field[0]
         ftype = field[1]
         if ftype.VARIANT_CODE == tag:
             params = field[2:]
-            fvalue = await field_archiver(reader, ftype, params)
-            elem.set_variant(fname, fvalue)
-    return elem
+            fvalue = await field_archiver(reader, ftype, params, elem if not is_wrapped else None)
+            if is_wrapped:
+                elem.set_variant(field[0], fvalue)
+    return elem if is_wrapped else fvalue
 
 
 async def dump_field(writer, elem, elem_type, params=None):
