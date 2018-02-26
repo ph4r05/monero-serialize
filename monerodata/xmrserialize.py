@@ -47,6 +47,46 @@ async def dump_uint(writer, n, width):
         n >>= 8
 
 
+def eq_obj_slots(l, r):
+    """
+    Compares objects with __slots__ defined
+    :param l:
+    :param r:
+    :return:
+    """
+    for f in l.__slots__:
+        if getattr(l, f, None) != getattr(r, f, None):
+            return False
+    return True
+
+
+def eq_obj_contents(l, r):
+    """
+    Compares object contents, supports slots
+    :param l:
+    :param r:
+    :return:
+    """
+    if l.__class__ is not r.__class__:
+        return False
+    if hasattr(l, '__slots__'):
+        return eq_obj_slots(l, r)
+    else:
+        return l.__dict__ == r.__dict__
+
+
+def slot_obj_dict(o):
+    """
+    Builds dict for o with __slots__ defined
+    :param o:
+    :return:
+    """
+    d = {}
+    for f in o.__slots__:
+        d[f] = getattr(o, f, None)
+    return d
+
+
 class UVarintType:
     WIRE_TYPE = 1
 
@@ -115,11 +155,11 @@ class BlobType:
             setattr(self, self.DATA_ATTR, args[0])
 
     def __eq__(self, rhs):
-        return (self.__class__ is rhs.__class__ and
-                self.__dict__ == rhs.__dict__)
+        return eq_obj_contents(self, rhs)
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.__dict__)
+        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
+        return '<%s: %s>' % (self.__class__.__name__, dct)
 
 
 class UnicodeType:
@@ -138,11 +178,11 @@ class VariantType:  # union of types, variant tags needed. is only one of the ty
             setattr(self, kw, kwargs[kw])
 
     def __eq__(self, rhs):
-        return (self.__class__ is rhs.__class__ and
-                self.__dict__ == rhs.__dict__)
+        return eq_obj_contents(self, rhs)
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.__dict__)
+        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
+        return '<%s: %s>' % (self.__class__.__name__, dct)
 
 
 class ContainerType:
@@ -161,11 +201,11 @@ class MessageType:
             setattr(self, kw, kwargs[kw])
 
     def __eq__(self, rhs):
-        return (self.__class__ is rhs.__class__ and
-                self.__dict__ == rhs.__dict__)
+        return eq_obj_contents(self, rhs)
 
     def __repr__(self):
-        return '<%s: %s>' % (self.__class__.__name__, self.__dict__)
+        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
+        return '<%s: %s>' % (self.__class__.__name__, dct)
 
 
 FLAG_REPEATED = const(1)
