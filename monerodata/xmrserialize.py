@@ -143,6 +143,15 @@ class Int64(IntType):
 
 
 class BlobType:
+    """
+    Binary data
+
+    Represented as bytearray() or a list of values in data structures.
+    Not wrapped in the BlobType, the BlobType is only a scheme descriptor.
+    Behaves in the same way as primitive types
+
+    Supports also the wrapped version (__init__, DATA_ATTR, eq, repr...),
+    """
     DATA_ATTR = 'data'
     WIRE_TYPE = 3
     FIX_SIZE = 0
