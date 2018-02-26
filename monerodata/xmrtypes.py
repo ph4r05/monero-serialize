@@ -63,7 +63,7 @@ class TxoutToScriptHash(x.MessageType):
 class TxoutTargetV(x.VariantType):
     FIELDS = [
         ('txout_to_script', TxoutToScript),
-        ('txout_to_scripthash', x.UVarintType),
+        ('txout_to_scripthash', TxoutToScriptHash),
         ('txout_to_key', TxoutToKey),
     ]
 
