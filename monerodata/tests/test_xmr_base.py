@@ -82,6 +82,19 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(ec_data, ec_point2.data)
         self.assertEqual(ec_point, ec_point2)
 
+    async def test_txin_to_key(self):
+        """
+        TxinToKey
+        :return:
+        """
+        msg = xmr.TxinToKey(amount=123, key_offsets=[1, 2, 3, 2**76], k_image=bytearray(range(32)))
+
+        writer = x.MemoryReaderWriter()
+        await x.dump_message(writer, msg)
+
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinToKey)
+        self.assertEqual(msg.amount, test_deser.amount)
+        self.assertEqual(msg, test_deser)
 
 
 
