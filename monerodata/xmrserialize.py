@@ -721,7 +721,7 @@ async def load_field(reader, elem_type, params=None, elem=None):
         return set_elem(elem, fvalue)
 
     elif issubclass(elem_type, MessageType):
-        fvalue = await load_message(reader, get_elem(elem))
+        fvalue = await load_message(reader, msg_type=elem_type, msg=get_elem(elem))
         return set_elem(elem, fvalue)
 
     else:
