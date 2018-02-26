@@ -477,15 +477,16 @@ class Archive(object):
         return await self.field(elem=elem, elem_type=elem_type, params=params)
 
 
-async def dump_blob(writer, elem, elem_type, params):
+async def dump_blob(writer, elem, elem_type, params=None):
     if hasattr(elem, 'serialize_dump'):
         return await elem.serialize_dump(writer)
     if not elem_type.FIX_SIZE:
         await dump_uvarint(writer, len(elem))
-    await writer.awrite(getattr(elem, BlobType.DATA_ATTR))
+    data = getattr(elem, BlobType.DATA_ATTR) if isinstance(elem, BlobType) else elem
+    await writer.awrite(data)
 
 
-async def load_blob(reader, elem_type, params, elem):
+async def load_blob(reader, elem_type, params=None, elem=None):
     if hasattr(elem_type, 'serialize_load'):
         elem = elem_type() if elem is None else elem
         return await elem.serialize_load(reader)
@@ -493,7 +494,17 @@ async def load_blob(reader, elem_type, params, elem):
     ivalue = elem_type.SIZE if elem_type.FIX_SIZE else await load_uvarint(reader)
     fvalue = bytearray(ivalue)
     await reader.areadinto(fvalue)
-    setattr(elem, elem_type.DATA_ATTR, fvalue)
+
+    if elem is None:
+        return fvalue  # array by default
+
+    elif isinstance(elem, BlobType):
+        setattr(elem, elem_type.DATA_ATTR, fvalue)
+        return elem
+
+    else:
+        elem.extend(fvalue)
+
     return elem
 
 

@@ -49,13 +49,40 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.height, test_deser.height)
         self.assertEqual(msg.height, msg2.height)
         self.assertEqual(msg2, test_deser)
-    
+
     async def test_ecpoint(self):
         """
         Ec point
         :return:
         """
-        pass
+        ec_data = bytearray(range(32))
+        writer = x.MemoryReaderWriter()
+
+        await x.dump_blob(writer, ec_data, xmr.ECPoint)
+        self.assertTrue(len(writer.buffer), xmr.ECPoint.SIZE)
+
+        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.buffer), xmr.ECPoint)
+        self.assertEqual(ec_data, test_deser)
+
+    async def test_ecpoint_obj(self):
+        """
+        EC point into
+        :return:
+        """
+        ec_data = bytearray(range(32))
+        ec_point = xmr.ECPoint(ec_data)
+        writer = x.MemoryReaderWriter()
+
+        await x.dump_blob(writer, ec_point, xmr.ECPoint)
+        self.assertTrue(len(writer.buffer), xmr.ECPoint.SIZE)
+
+        ec_point2 = xmr.ECPoint()
+        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.buffer), xmr.ECPoint, elem=ec_point2)
+
+        self.assertEqual(ec_data, ec_point2.data)
+        self.assertEqual(ec_point, ec_point2)
+
+
 
 
 
