@@ -108,6 +108,19 @@ class BlobType:
     FIX_SIZE = 0
     SIZE = 0
 
+    def __init__(self, *args, **kwargs):
+        if len(args) > 1:
+            raise ValueError()
+        if len(args) > 0:
+            setattr(self, self.DATA_ATTR, args[0])
+
+    def __eq__(self, rhs):
+        return (self.__class__ is rhs.__class__ and
+                self.__dict__ == rhs.__dict__)
+
+    def __repr__(self):
+        return '<%s: %s>' % (self.__class__.__name__, self.__dict__)
+
 
 class UnicodeType:
     WIRE_TYPE = 4
@@ -160,20 +173,18 @@ FLAG_REPEATED = const(1)
 
 class MemoryReaderWriter:
 
-    def __init__(self, buffer):
-        self.buffer = buffer
+    def __init__(self, buffer=None):
+        self.buffer = buffer if buffer else []
 
     async def areadinto(self, buf):
         ln = len(buf)
-        nread = 0
-        for idx, i in enumerate(self.buffer[:ln]):
-            buf[idx] = i
-            nread += 1
-        self.buffer = self.buffer[ln:]
+        nread = min(ln, len(self.buffer))
+        for idx in range(nread):
+            buf[idx] = self.buffer.pop(0)
         return nread
 
     async def awrite(self, buf):
-        self.buffer += buf
+        self.buffer.extend(buf)
         nwritten = len(buf)
         return nwritten
 
@@ -202,11 +213,11 @@ def is_elem_ref(elem_ref):
            and (elem_ref[0] == ElemRefObj or elem_ref[0] == ElemRefArr)
 
 
-def get_elem(elem_ref):
+def get_elem(elem_ref, default=None):
     if not is_elem_ref(elem_ref):
         return elem_ref
     elif elem_ref[0] == ElemRefObj:
-        return getattr(elem_ref[1], elem_ref[2])
+        return getattr(elem_ref[1], elem_ref[2], default)
     elif elem_ref[0] == ElemRefArr:
         return elem_ref[1][elem_ref[2]]
 
@@ -225,9 +236,9 @@ def set_elem(elem_ref, elem):
 
 
 class Archive(object):
-    def __init__(self):
-        self.writing = False
-        self.iobj = None
+    def __init__(self, iobj, writing=True):
+        self.writing = writing
+        self.iobj = iobj
 
     async def tag(self, tag):
         """
@@ -459,8 +470,7 @@ class Archive(object):
 
     async def dump_field(self, writer, elem, elem_type, params=None):
         assert self.iobj == writer
-        fvalue = await self.field(elem=get_elem(elem), elem_type=elem_type, params=params)
-        return set_elem(elem, fvalue)
+        return await self.field(elem=elem, elem_type=elem_type, params=params)
 
     async def load_field(self, reader, elem_type, params=None, elem=None):
         assert self.iobj == reader

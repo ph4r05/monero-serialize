@@ -52,6 +52,7 @@ class TxoutTargetV(x.VariantType):
 
 
 class TxinGen(x.MessageType):
+    __slots__ = ['height']
     VARIANT_CODE = 0xff
     FIELDS = [
         ('height', x.UVarintType),
@@ -59,6 +60,7 @@ class TxinGen(x.MessageType):
 
 
 class TxinToKey(x.MessageType):
+    __slots__ = ['amount', 'key_offsets', 'k_image']
     VARIANT_CODE = 0x2
     FIELDS = [
         ('amount', x.UVarintType),
