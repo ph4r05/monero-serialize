@@ -14,6 +14,13 @@ from . import xmrserialize as x
 #
 
 
+class Hash(x.BlobType):
+    __slots__ = ['data']
+    DATA_ATTR = 'data'
+    FIX_SIZE = 1
+    SIZE = 32
+
+
 class ECKey(x.BlobType):
     __slots__ = ['bytes']
     DATA_ATTR = 'bytes'
@@ -43,6 +50,14 @@ class TxoutToKey(x.MessageType):
     ]
 
 
+class TxoutToScriptHash(x.MessageType):
+    __slots__ = []
+    VARIANT_CODE = 0x1
+    FIELDS = [
+        ('hash', Hash),
+    ]
+
+
 class TxoutTargetV(x.VariantType):
     FIELDS = [
         ('txout_to_script', TxoutToScript),
@@ -69,11 +84,23 @@ class TxinToKey(x.MessageType):
     ]
 
 
+class TxinToScript(x.MessageType):
+    __slots__ = []
+    VARIANT_CODE = 0x0
+    FIELDS = []
+
+
+class TxinToScriptHash(x.MessageType):
+    __slots__ = []
+    VARIANT_CODE = 0x1
+    FIELDS = []
+
+
 class TxInV(x.VariantType):
     FIELDS = [
         ('txin_gen', TxinGen),
-        ('txin_to_script', x.BlobType),
-        ('txin_to_scripthash', x.BlobType),
+        ('txin_to_script', TxinToScript),
+        ('txin_to_scripthash', TxinToScriptHash),
         ('txin_to_key', TxinToKey),
     ]
 
