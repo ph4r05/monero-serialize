@@ -175,16 +175,37 @@ class UnicodeType:
     WIRE_TYPE = 4
 
 
-class VariantType:  # union of types, variant tags needed. is only one of the types. List in typedef, enum.
+class VariantType:
+    """
+    Union of types, variant tags needed. is only one of the types. List in typedef, enum.
+    Wraps the variant type in order to unambiguously support variant of variants.
+    """
     WIRE_TYPE = 5
     FIELDS = []
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.variant_elem = None
-        for kw in kwargs:
-            self.variant_elem = kw
-            self.variant_elem_type = kwargs[kw].__class__
-            setattr(self, kw, kwargs[kw])
+        self.variant_elem_type = None
+
+        fname, fval = None, None
+        if len(args) > 0:
+            fname, fval = self.find_fdef(args[0])[0], args[0]
+        if len(kwargs) > 0:
+            key = list(kwargs.keys())[0]
+            fname, fval = key, kwargs[key]
+        if fname:
+            self.set_variant(fname, fval)
+
+    def find_fdef(self, elem):
+        for x in self.FIELDS:
+            if isinstance(elem, x[1]):
+                return x
+        raise ValueError('Unrecognized variant')
+
+    def set_variant(self, fname, fvalue):
+        self.variant_elem = fname
+        self.variant_elem_type = fvalue.__class__
+        setattr(self, fname, fvalue)
 
     def __eq__(self, rhs):
         return eq_obj_contents(self, rhs)
@@ -195,6 +216,11 @@ class VariantType:  # union of types, variant tags needed. is only one of the ty
 
 
 class ContainerType:
+    """
+    Array of elements
+    Represented as a real array in the data structures, not wrapped in the ContainerType.
+    The Container type is used only as a schema descriptor for serialization.
+    """
     WIRE_TYPE = 6
     FIX_SIZE = 0
     SIZE = 0
@@ -642,7 +668,7 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
         return await elem.serialize_dump(writer)
 
     field_archiver = field_archiver if field_archiver else dump_field
-    await dump_uvarint(writer, elem.VARIANT_CODE)
+    await dump_uvarint(writer, elem.variant_elem_type.VARIANT_CODE)
     await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
 
 
@@ -656,12 +682,10 @@ async def load_variant(reader, elem_type, params=None, elem=None, field_archiver
     for field in elem_type.FIELDS:
         fname = field[0]
         ftype = field[1]
-        if ftype.__class__.VARIANT_CODE == tag:
+        if ftype.VARIANT_CODE == tag:
             params = field[2:]
-            fvalue = await field_archiver(reader, ftype.__class__, params)
-            setattr(elem, fname, fvalue)
-            elem.variant_elem = fname
-            elem.variant_elem_type = ftype
+            fvalue = await field_archiver(reader, ftype, params)
+            elem.set_variant(fname, fvalue)
     return elem
 
 
