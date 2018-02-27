@@ -20,6 +20,13 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
 
     def __init__(self, *args, **kwargs):
         super(XmrTypesBaseTest, self).__init__(*args, **kwargs)
+        self.ec_offset = 0
+
+    def setUp(self):
+        self.ec_offset = 0
+
+    def generate_rand_ec_key(self, use_offset=True):
+        return bytearray(range(self.ec_offset, self.ec_offset+32))
 
     async def test_simple_msg(self):
         """
@@ -145,6 +152,22 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertListEqual(test_deser.vin, msg.vin)
         self.assertListEqual(test_deser.vout, msg.vout)
         self.assertEqual(test_deser, msg)
+
+    async def test_boro_sig(self):
+        """
+        BoroSig
+        :return:
+        """
+        ee = self.generate_rand_ec_key()
+        s0 = [self.generate_rand_ec_key() for _ in range(64)]
+        s1 = [self.generate_rand_ec_key() for _ in range(64)]
+        msg = xmr.BoroSig(s0=s0, s1=s1, ee=ee)
+
+        writer = x.MemoryReaderWriter()
+        await x.dump_message(writer, msg)
+
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.BoroSig)
+        self.assertEqual(msg, test_deser)
 
 
 if __name__ == "__main__":
