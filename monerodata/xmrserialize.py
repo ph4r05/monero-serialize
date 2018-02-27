@@ -690,7 +690,6 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
     if is_wrapped:
         elem = elem_type() if elem is None else elem
 
-    fvalue = None
     field_archiver = field_archiver if field_archiver else load_field
     tag = await load_uvarint(reader)
     for field in elem_type.FIELDS:
