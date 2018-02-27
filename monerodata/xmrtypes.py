@@ -272,28 +272,34 @@ class RctSigBase(x.MessageType):
 
         if self.type == RctType.Simple:
             await ar.tag('pseudoOuts')
+            await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
                 raise ValueError('pseudoOuts size mismatch')
 
             for i in range(inputs):
                 await ar.field(eref(self.pseudoOuts, i), KeyV.ELEM_TYPE)
+            await ar.end_array()
 
         await ar.tag('ecdhInfo')
+        await ar.begin_array()
         await ar.prepare_container(outputs, eref(self, 'ecdhInfo'), EcdhInfo)
         if ar.writing and len(self.ecdhInfo) != outputs:
             raise ValueError('EcdhInfo size mismatch')
 
         for i in range(outputs):
             await ar.field(eref(self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
+        await ar.end_array()
 
         await ar.tag('outPk')
+        await ar.begin_array()
         await ar.prepare_container((outputs), eref(self, 'outPk'), CtkeyV)
         if ar.writing and len(self.outPk) != outputs:
             raise ValueError('outPk size mismatch')
 
         for i in range(outputs):
             await ar.field(eref(self.outPk[i], 'mask'), ECKey)
+        await ar.end_array()
 
 
 class RctType(object):
@@ -333,23 +339,28 @@ class RctSigPrunable(x.MessageType):
 
         if type == RctType.SimpleBulletproof or type == RctType.FullBulletproof:
             await ar.tag('bp')
+            await ar.begin_array()
             if len(self.bulletproofs) != outputs:
                 raise ValueError('Bulletproofs size mismatch')
 
             await ar.prepare_container(outputs, eref(self, 'bulletproofs'), elem_type=Bulletproof)
             for i in range(len(self.bulletproofs)):
                 await ar.field(elem=eref(self.bulletproofs, i), elem_type=Bulletproof)
+            await ar.end_array()
 
         else:
             await ar.tag('rangeSigs')
+            await ar.begin_array()
             if len(self.rangeSigs) != outputs:
                 raise ValueError('rangeSigs size mismatch')
 
             await ar.prepare_container(outputs, eref(self, 'rangeSigs'), elem_type=RangeSig)
             for i in range(len(self.rangeSigs)):
                 await ar.field(elem=eref(self.rangeSigs, i), elem_type=RangeSig)
+            await ar.end_array()
 
         await ar.tag('MGs')
+        await ar.begin_array()
 
         # We keep a byte for size of MGs, because we don't know whether this is
         # a simple or full rct signature, and it's starting to annoy the hell out of me
@@ -362,12 +373,15 @@ class RctSigPrunable(x.MessageType):
             # We save the MGs contents directly, because we want it to save its
             # arrays and matrices without the size prefixes, and the load can't
             # know what size to expect if it's not in the data
+            await ar.begin_object()
             await ar.tag('ss')
+            await ar.begin_array()
             if ar.writing and len(self.MGs[i].ss) != mixin + 1:
                 raise ValueError('MGs size mismatch')
 
             await ar.prepare_container(mg_elements, eref(self.MGs[i], 'ss'), elem_type=KeyM)
             for j in range(mixin + 1):
+                await ar.begin_array()
                 mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
                 await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
 
@@ -376,17 +390,22 @@ class RctSigPrunable(x.MessageType):
 
                 for k in range(mg_ss2_elements):
                     await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
+                await ar.end_array()
 
             await ar.tag('cc')
             await ar.field(eref(self.MGs[i], 'cc'), elem_type=ECKey)
+            await ar.end_object()
+        await ar.end_array()
 
         if type == RctType.SimpleBulletproof:
+            await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
                 raise ValueError('pseudoOuts size mismatch')
 
             for i in range(inputs):
                 await ar.field(eref(self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
+            await ar.end_array()
 
 
 class RctSig(RctSigBase):
@@ -404,12 +423,6 @@ class Signature(x.MessageType):
     ]
 
     def serialize_archive(self, ar):
-        """
-        Custom serialization
-        :param ar:
-        :type ar: x.Archive
-        :return:
-        """
         ar.field(eref(self, 'c'), ECKey)
         ar.field(eref(self, 'r'), ECKey)
 

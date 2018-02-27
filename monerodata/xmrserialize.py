@@ -377,6 +377,30 @@ class Archive(object):
         :return:
         """
 
+    async def begin_array(self):
+        """
+        Mark start of the array. Used for JSON serialization.
+        :return:
+        """
+
+    async def end_array(self):
+        """
+        Mark end of the array. Used for JSON serialization.
+        :return:
+        """
+
+    async def begin_object(self):
+        """
+        Mark start of the object. Used for JSON serialization.
+        :return:
+        """
+
+    async def end_object(self):
+        """
+        Mark end of the object. Used for JSON serialization.
+        :return:
+        """
+
     async def prepare_container(self, size, container, elem_type=None):
         """
         Prepares container for serialization
