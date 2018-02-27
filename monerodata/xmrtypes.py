@@ -242,7 +242,7 @@ class EcdhInfo(x.ContainerType):
 
 
 class RctSigBase(x.MessageType):
-    __slots__ = ['V', 'A', 'S', 'T1', 'T2', 'taux', 'mu', 'L', 'R', 'a', 'b', 't']
+    __slots__ = ['type', 'txnFee', 'message', 'mixRing', 'pseudoOuts', 'ecdhInfo', 'outPk']
     FIELDS = [
         ('type', x.UInt8),
         ('txnFee', x.UVarintType),
