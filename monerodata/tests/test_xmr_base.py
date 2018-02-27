@@ -26,6 +26,11 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.ec_offset = 0
 
     def generate_rand_ec_key(self, use_offset=True):
+        offset = 0
+        if use_offset:
+            offset = self.ec_offset
+            self.ec_offset += 1
+
         return bytearray(range(self.ec_offset, self.ec_offset+32))
 
     async def test_simple_msg(self):
