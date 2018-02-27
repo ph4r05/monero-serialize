@@ -622,9 +622,13 @@ async def dump_blob(writer, elem, elem_type, params=None):
         return await elem.serialize_dump(writer)
 
     elem_is_blob = isinstance(elem, BlobType)
-    if (elem_is_blob and not elem.FIX_SIZE) or (not elem_is_blob and not elem_type.FIX_SIZE):
-        await dump_uvarint(writer, len(elem))
+    elem_params = elem if elem_is_blob or elem_type is None else elem_type
     data = getattr(elem, BlobType.DATA_ATTR) if elem_is_blob else elem
+
+    if not elem_params.FIX_SIZE:
+        await dump_uvarint(writer, len(elem))
+    elif len(data) != elem_params.SIZE:
+        raise ValueError('Fixed size blob has not defined size: %s' % elem_params.SIZE)
     await writer.awrite(data)
 
 
@@ -674,6 +678,8 @@ async def dump_container(writer, container, container_type, params=None, field_a
         return await container.serialize_dump(writer)
     if not container_type.FIX_SIZE:
         await dump_uvarint(writer, len(container))
+    elif len(container) != container_type.SIZE:
+        raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
 
     field_archiver = field_archiver if field_archiver else dump_field
     elem_type = params[0] if params else None
