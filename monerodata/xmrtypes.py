@@ -125,12 +125,6 @@ class TransactionPrefix(x.MessageType):
     ]
 
 
-class Transaction(TransactionPrefix):
-    # TODO: tsx
-    FIELDS = [
-
-    ]
-
 #
 # rctTypes.h
 #
@@ -242,6 +236,10 @@ class Bulletproof(x.MessageType):
     ]
 
 
+class EcdhInfo(x.ContainerType):
+    ELEM_TYPE = EcdhTuple
+
+
 class RctSigBase(x.MessageType):
     __slots__ = ['V', 'A', 'S', 'T1', 'T2', 'taux', 'mu', 'L', 'R', 'a', 'b', 't']
     FIELDS = [
@@ -250,18 +248,51 @@ class RctSigBase(x.MessageType):
         ('message', ECKey),
         ('mixRing', CtkeyM),
         ('pseudoOuts', KeyV),
-        ('ecdhInfo', x.ContainerType, EcdhTuple),
+        ('ecdhInfo', EcdhInfo),
         ('outPk', CtkeyV),
     ]
 
-    def serialize_archive(self, ar):
+    async def serialize_rctsig_base(self, ar, inputs, outputs):
         """
         Custom serialization
         :param ar:
         :type ar: x.Archive
         :return:
         """
-        # TODO: impl
+        await ar.field((x.ElemRefObj, self, self.FIELDS[0][0]), self.FIELDS[0][1])
+
+        if self.type == RctType.Null:
+            return
+        if self.type != RctType.Full and self.type != RctType.FullBulletproof and \
+                self.type != RctType.Simple and self.type != RctType.SimpleBulletproof:
+            raise ValueError('Unknown type')
+
+        await ar.field((x.ElemRefObj, self, self.FIELDS[1][0]), self.FIELDS[1][1])
+
+        if self.type == RctType.Simple:
+            await ar.tag('pseudoOuts')
+            await ar.prepare_container(inputs, (x.ElemRefObj, self, 'pseudoOuts'), KeyV)
+            if ar.writing and len(self.pseudoOuts) != inputs:
+                raise ValueError('pseudoOuts size mismatch')
+
+            for i in range(inputs):
+                await ar.field((x.ElemRefArr, self.pseudoOuts, i), KeyV.ELEM_TYPE)
+
+        await ar.tag('ecdhInfo')
+        await ar.prepare_container(outputs, (x.ElemRefObj, self, 'ecdhInfo'), EcdhInfo)
+        if ar.writing and len(self.ecdhInfo) != outputs:
+            raise ValueError('EcdhInfo size mismatch')
+
+        for i in range(outputs):
+            await ar.field((x.ElemRefArr, self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
+
+        await ar.tag('outPk')
+        await ar.prepare_container((outputs), (x.ElemRefObj, self, 'outPk'), CtkeyV)
+        if ar.writing and len(self.outPk) != outputs:
+            raise ValueError('outPk size mismatch')
+
+        for i in range(outputs):
+            await ar.field((x.ElemRefObj, self.outPk[i], 'mask'), ECKey)
 
 
 class RctType(object):
@@ -300,24 +331,24 @@ class RctSigPrunable(x.MessageType):
             raise ValueError('Unknown type')
 
         if type == RctType.SimpleBulletproof or type == RctType.FullBulletproof:
-            ar.tag('bp')
+            await ar.tag('bp')
             if len(self.bulletproofs) != outputs:
                 raise ValueError('Bulletproofs size mismatch')
 
-            ar.prepare_container(outputs, (x.ElemRefObj, self, 'bulletproofs'), elem_type=Bulletproof)
+            await ar.prepare_container(outputs, (x.ElemRefObj, self, 'bulletproofs'), elem_type=Bulletproof)
             for i in range(len(self.bulletproofs)):
-                ar.field(elem=(x.ElemRefArr, self.bulletproofs, i), elem_type=Bulletproof)
+                await ar.field(elem=(x.ElemRefArr, self.bulletproofs, i), elem_type=Bulletproof)
 
         else:
-            ar.tag('rangeSigs')
+            await ar.tag('rangeSigs')
             if len(self.rangeSigs) != outputs:
                 raise ValueError('rangeSigs size mismatch')
 
-            ar.prepare_container(outputs, (x.ElemRefObj, self, 'rangeSigs'), elem_type=RangeSig)
+            await ar.prepare_container(outputs, (x.ElemRefObj, self, 'rangeSigs'), elem_type=RangeSig)
             for i in range(len(self.rangeSigs)):
-                ar.field(elem=(x.ElemRefArr, self.rangeSigs, i), elem_type=RangeSig)
+                await ar.field(elem=(x.ElemRefArr, self.rangeSigs, i), elem_type=RangeSig)
 
-        ar.tag('MGs')
+        await ar.tag('MGs')
 
         # We keep a byte for size of MGs, because we don't know whether this is
         # a simple or full rct signature, and it's starting to annoy the hell out of me
@@ -325,41 +356,103 @@ class RctSigPrunable(x.MessageType):
         if len(self.MGs) != mg_elements:
             raise ValueError('MGs size mismatch')
 
-        ar.prepare_container(mg_elements, (x.ElemRefObj, self, 'MGs'), elem_type=MgSig)
+        await ar.prepare_container(mg_elements, (x.ElemRefObj, self, 'MGs'), elem_type=MgSig)
         for i in range(mg_elements):
-            # we save the MGs contents directly, because we want it to save its
+            # We save the MGs contents directly, because we want it to save its
             # arrays and matrices without the size prefixes, and the load can't
             # know what size to expect if it's not in the data
-            ar.tag('ss')
+            await ar.tag('ss')
             if ar.writing and len(self.MGs[i].ss) != mixin + 1:
                 raise ValueError('MGs size mismatch')
 
-            ar.prepare_container(mg_elements, (x.ElemRefObj, self.MGs[i], 'ss'), elem_type=KeyM)
+            await ar.prepare_container(mg_elements, (x.ElemRefObj, self.MGs[i], 'ss'), elem_type=KeyM)
             for j in range(mixin + 1):
                 mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
-                ar.prepare_container(mg_ss2_elements, (x.ElemRefArr, self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
+                await ar.prepare_container(mg_ss2_elements, (x.ElemRefArr, self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
 
                 if ar.writing and len(self.MGs[i].ss[j] != mg_ss2_elements):
                     raise ValueError('MGs size mismatch 2')
 
                 for k in range(mg_ss2_elements):
-                    ar.field((x.ElemRefArr, self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
+                    await ar.field((x.ElemRefArr, self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
 
-            ar.tag('cc')
-            ar.field((x.ElemRefObj, self.MGs[i], 'cc'), elem_type=ECKey)
+            await ar.tag('cc')
+            await ar.field((x.ElemRefObj, self.MGs[i], 'cc'), elem_type=ECKey)
 
         if type == RctType.SimpleBulletproof:
-            ar.prepare_container(inputs, (x.ElemRefObj, self, 'pseudoOuts'), elem_type=KeyV)
+            await ar.prepare_container(inputs, (x.ElemRefObj, self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
                 raise ValueError('pseudoOuts size mismatch')
 
             for i in range(inputs):
-                ar.field((x.ElemRefArr, self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
+                await ar.field((x.ElemRefArr, self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
 
 
+class RctSig(RctSigBase):
+    __slots__ = ['p']
+    FIELDS = [
+        ('p', RctSigPrunable),
+    ]
 
 
+class Signature(x.MessageType):
+    __slots__ = ['c', 'r']
+    FIELDS = [
+        ('c', ECKey),
+        ('r', ECKey),
+    ]
 
+    def serialize_archive(self, ar):
+        """
+        Custom serialization
+        :param ar:
+        :type ar: x.Archive
+        :return:
+        """
+        ar.field((x.ElemRefObj, self, 'c'), ECKey)
+        ar.field((x.ElemRefObj, self, 'r'), ECKey)
+
+
+class SignatureArray(x.ContainerType):
+    FIX_SIZE = 0
+    ELEM_TYPE = Signature
+
+
+class Transaction(TransactionPrefix):
+    # noinspection PyTypeChecker
+    FIELDS = TransactionPrefix.FIELDS + [
+        ('signatures', x.ContainerType, SignatureArray),
+        ('rct_signatures', RctSigBase),
+    ]
+
+
+class BlockHeader(x.MessageType):
+    FIELDS = [
+        ('major_version', x.UInt8),
+        ('minor_version', x.UInt8),
+        ('timestamp', x.UInt64),
+        ('prev_id', Hash),
+        ('nonce', x.UInt32),
+    ]
+
+
+class HashVector(x.ContainerType):
+    ELEM_TYPE = Hash
+
+
+class Block(BlockHeader):
+    # noinspection PyTypeChecker
+    FIELDS = BlockHeader.FIELDS + [
+        ('miner_tx', Transaction),
+        ('tx_hashes', HashVector),
+    ]
+
+
+class AccountPublicAddress(x.MessageType):
+    FIELDS = [
+        ('m_spend_public_key', ECPoint),
+        ('m_view_public_key', ECPoint),
+    ]
 
 
 
