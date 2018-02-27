@@ -276,6 +276,13 @@ class ElemRefArr:
 
 
 def gen_elem_array(size, elem_type=None):
+    """
+    Generates element array of given size and initializes with given type.
+    Supports container type, used for pre-allocation before deserialization.
+    :param size:
+    :param elem_type:
+    :return:
+    """
     if elem_type is None or not callable(elem_type):
         return [elem_type] * size
     if isinstance(elem_type, ContainerType) or issubclass(elem_type, ContainerType):
@@ -287,11 +294,24 @@ def gen_elem_array(size, elem_type=None):
 
 
 def is_elem_ref(elem_ref):
+    """
+    Returns true if the elem_ref is an element reference
+
+    :param elem_ref:
+    :return:
+    """
     return elem_ref and isinstance(elem_ref, tuple) and len(elem_ref) == 3 \
            and (elem_ref[0] == ElemRefObj or elem_ref[0] == ElemRefArr)
 
 
 def get_elem(elem_ref, default=None):
+    """
+    Gets the element referenced by elem_ref or returns the elem_ref directly if its not a reference.
+
+    :param elem_ref:
+    :param default:
+    :return:
+    """
     if not is_elem_ref(elem_ref):
         return elem_ref
     elif elem_ref[0] == ElemRefObj:
@@ -301,6 +321,13 @@ def get_elem(elem_ref, default=None):
 
 
 def set_elem(elem_ref, elem):
+    """
+    Sets element referenced by the elem_ref. Returns the elem.
+
+    :param elem_ref:
+    :param elem:
+    :return:
+    """
     if elem_ref is None or elem_ref == elem or not is_elem_ref(elem_ref):
         return elem
 
@@ -556,6 +583,16 @@ class Archive(object):
 
 
 async def dump_blob(writer, elem, elem_type, params=None):
+    """
+    Dumps blob message to the writer.
+    Supports both blob and raw value.
+
+    :param writer:
+    :param elem:
+    :param elem_type:
+    :param params:
+    :return:
+    """
     if hasattr(elem, 'serialize_dump'):
         return await elem.serialize_dump(writer)
     if not elem_type.FIX_SIZE:
@@ -565,6 +602,15 @@ async def dump_blob(writer, elem, elem_type, params=None):
 
 
 async def load_blob(reader, elem_type, params=None, elem=None):
+    """
+    Loads blob from reader to the element. Returns the loaded blob.
+
+    :param reader:
+    :param elem_type:
+    :param params:
+    :param elem:
+    :return:
+    """
     if hasattr(elem_type, 'serialize_load'):
         elem = elem_type() if elem is None else elem
         return await elem.serialize_load(reader)
@@ -587,6 +633,16 @@ async def load_blob(reader, elem_type, params=None, elem=None):
 
 
 async def dump_container(writer, container, container_type, params=None, field_archiver=None):
+    """
+    Dumps container of elements to the writer.
+
+    :param writer:
+    :param container:
+    :param container_type:
+    :param params:
+    :param field_archiver:
+    :return:
+    """
     if hasattr(container, 'serialize_dump'):
         return await container.serialize_dump(writer)
     if not container_type.FIX_SIZE:
@@ -601,6 +657,17 @@ async def dump_container(writer, container, container_type, params=None, field_a
 
 
 async def load_container(reader, container_type, params=None, container=None, field_archiver=None):
+    """
+    Loads container of elements from the reader. Supports the container ref.
+    Returns loaded container.
+
+    :param reader:
+    :param container_type:
+    :param params:
+    :param container:
+    :param field_archiver:
+    :return:
+    """
     if hasattr(container_type, 'serialize_load'):
         container = container_type() if container is None else container
         return await container.serialize_load(reader)
@@ -626,6 +693,15 @@ async def load_container(reader, container_type, params=None, container=None, fi
 
 
 async def dump_message_field(writer, msg, field, field_archiver=None):
+    """
+    Dumps a message field to the writer. Field is defined by the message field specification.
+
+    :param writer:
+    :param msg:
+    :param field:
+    :param field_archiver:
+    :return:
+    """
     fname = field[0]
     ftype = field[1]
     params = field[2:]
@@ -636,6 +712,16 @@ async def dump_message_field(writer, msg, field, field_archiver=None):
 
 
 async def load_message_field(reader, msg, field, field_archiver=None):
+    """
+    Loads message field from the reader. Field is defined by the message field specification.
+    Returns loaded value, supports field reference.
+
+    :param reader:
+    :param msg:
+    :param field:
+    :param field_archiver:
+    :return:
+    """
     fname = field[0]
     ftype = field[1]
     params = field[2:]
@@ -645,6 +731,14 @@ async def load_message_field(reader, msg, field, field_archiver=None):
 
 
 async def dump_message(writer, msg, field_archiver=None):
+    """
+    Dumps message to the writer.
+
+    :param writer:
+    :param msg:
+    :param field_archiver:
+    :return:
+    """
     if hasattr(msg, 'serialize_dump'):
         return await msg.serialize_dump(writer)
 
@@ -656,17 +750,39 @@ async def dump_message(writer, msg, field_archiver=None):
 
 
 async def load_message(reader, msg_type, msg=None, field_archiver=None):
+    """
+    Loads message if the given type from the reader.
+    Supports reading directly to existing message.
+
+    :param reader:
+    :param msg_type:
+    :param msg:
+    :param field_archiver:
+    :return:
+    """
     msg = msg_type() if msg is None else msg
     if hasattr(msg_type, 'serialize_load'):
         return await msg.serialize_load(reader)
 
-    for field in msg_type.FIELDS:
+    fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
+    for field in fields:
         await load_message_field(reader, msg, field, field_archiver=field_archiver)
 
     return msg
 
 
 async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver=None):
+    """
+    Dumps variant type to the writer.
+    Supports both wrapped and raw variant.
+
+    :param writer:
+    :param elem:
+    :param elem_type:
+    :param params:
+    :param field_archiver:
+    :return:
+    """
     if hasattr(elem, 'serialize_dump'):
         return await elem.serialize_dump(writer)
 
@@ -682,6 +798,18 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
 
 
 async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, field_archiver=None):
+    """
+    Loads variant type from the reader.
+    Supports both wrapped and raw variant.
+
+    :param reader:
+    :param elem_type:
+    :param params:
+    :param elem:
+    :param wrapped:
+    :param field_archiver:
+    :return:
+    """
     if hasattr(elem_type, 'serialize_load'):
         elem = elem_type() if elem is None else elem
         return await elem.serialize_load(reader)
@@ -703,6 +831,16 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
 
 
 async def dump_field(writer, elem, elem_type, params=None):
+    """
+    Dumps field to the writer, according to the element specification.
+    General multiplexer.
+
+    :param writer:
+    :param elem:
+    :param elem_type:
+    :param params:
+    :return:
+    """
     if issubclass(elem_type, UVarintType):
         await dump_uvarint(writer, elem)
 
@@ -730,6 +868,15 @@ async def dump_field(writer, elem, elem_type, params=None):
 
 
 async def load_field(reader, elem_type, params=None, elem=None):
+    """
+    Loads a field from the reader, based on the field type specification. Demultiplexer.
+
+    :param reader:
+    :param elem_type:
+    :param params:
+    :param elem:
+    :return:
+    """
     if issubclass(elem_type, UVarintType):
         fvalue = await load_uvarint(reader)
         return set_elem(elem, fvalue)
