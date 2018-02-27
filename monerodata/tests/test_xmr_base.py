@@ -31,7 +31,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
             offset = self.ec_offset
             self.ec_offset += 1
 
-        return bytearray(range(self.ec_offset, self.ec_offset+32))
+        return bytearray(range(offset, offset+32))
 
     async def test_simple_msg(self):
         """
