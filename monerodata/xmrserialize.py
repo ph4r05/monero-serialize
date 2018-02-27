@@ -352,6 +352,19 @@ def set_elem(elem_ref, elem):
         return elem
 
 
+def eref(obj, key):
+    """
+    Returns element reference
+    :param obj:
+    :param key:
+    :return:
+    """
+    if isinstance(key, int):
+        return ElemRefArr, obj, key
+    else:
+        return ElemRefObj, obj, key
+
+
 class Archive(object):
     def __init__(self, iobj, writing=True):
         self.writing = writing

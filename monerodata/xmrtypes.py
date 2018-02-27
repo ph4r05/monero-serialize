@@ -7,6 +7,7 @@ XMR types
 
 from .protobuf import const, load_uvarint, dump_uvarint, LimitedReader, CountingWriter
 from . import xmrserialize as x
+from .xmrserialize import eref
 
 
 #
@@ -259,7 +260,7 @@ class RctSigBase(x.MessageType):
         :type ar: x.Archive
         :return:
         """
-        await ar.field((x.ElemRefObj, self, self.FIELDS[0][0]), self.FIELDS[0][1])
+        await ar.field(eref(self, self.FIELDS[0][0]), self.FIELDS[0][1])
 
         if self.type == RctType.Null:
             return
@@ -267,32 +268,32 @@ class RctSigBase(x.MessageType):
                 self.type != RctType.Simple and self.type != RctType.SimpleBulletproof:
             raise ValueError('Unknown type')
 
-        await ar.field((x.ElemRefObj, self, self.FIELDS[1][0]), self.FIELDS[1][1])
+        await ar.field(eref(self, self.FIELDS[1][0]), self.FIELDS[1][1])
 
         if self.type == RctType.Simple:
             await ar.tag('pseudoOuts')
-            await ar.prepare_container(inputs, (x.ElemRefObj, self, 'pseudoOuts'), KeyV)
+            await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
                 raise ValueError('pseudoOuts size mismatch')
 
             for i in range(inputs):
-                await ar.field((x.ElemRefArr, self.pseudoOuts, i), KeyV.ELEM_TYPE)
+                await ar.field(eref(self.pseudoOuts, i), KeyV.ELEM_TYPE)
 
         await ar.tag('ecdhInfo')
-        await ar.prepare_container(outputs, (x.ElemRefObj, self, 'ecdhInfo'), EcdhInfo)
+        await ar.prepare_container(outputs, eref(self, 'ecdhInfo'), EcdhInfo)
         if ar.writing and len(self.ecdhInfo) != outputs:
             raise ValueError('EcdhInfo size mismatch')
 
         for i in range(outputs):
-            await ar.field((x.ElemRefArr, self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
+            await ar.field(eref(self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
 
         await ar.tag('outPk')
-        await ar.prepare_container((outputs), (x.ElemRefObj, self, 'outPk'), CtkeyV)
+        await ar.prepare_container((outputs), eref(self, 'outPk'), CtkeyV)
         if ar.writing and len(self.outPk) != outputs:
             raise ValueError('outPk size mismatch')
 
         for i in range(outputs):
-            await ar.field((x.ElemRefObj, self.outPk[i], 'mask'), ECKey)
+            await ar.field(eref(self.outPk[i], 'mask'), ECKey)
 
 
 class RctType(object):
@@ -335,18 +336,18 @@ class RctSigPrunable(x.MessageType):
             if len(self.bulletproofs) != outputs:
                 raise ValueError('Bulletproofs size mismatch')
 
-            await ar.prepare_container(outputs, (x.ElemRefObj, self, 'bulletproofs'), elem_type=Bulletproof)
+            await ar.prepare_container(outputs, eref(self, 'bulletproofs'), elem_type=Bulletproof)
             for i in range(len(self.bulletproofs)):
-                await ar.field(elem=(x.ElemRefArr, self.bulletproofs, i), elem_type=Bulletproof)
+                await ar.field(elem=eref(self.bulletproofs, i), elem_type=Bulletproof)
 
         else:
             await ar.tag('rangeSigs')
             if len(self.rangeSigs) != outputs:
                 raise ValueError('rangeSigs size mismatch')
 
-            await ar.prepare_container(outputs, (x.ElemRefObj, self, 'rangeSigs'), elem_type=RangeSig)
+            await ar.prepare_container(outputs, eref(self, 'rangeSigs'), elem_type=RangeSig)
             for i in range(len(self.rangeSigs)):
-                await ar.field(elem=(x.ElemRefArr, self.rangeSigs, i), elem_type=RangeSig)
+                await ar.field(elem=eref(self.rangeSigs, i), elem_type=RangeSig)
 
         await ar.tag('MGs')
 
@@ -356,7 +357,7 @@ class RctSigPrunable(x.MessageType):
         if len(self.MGs) != mg_elements:
             raise ValueError('MGs size mismatch')
 
-        await ar.prepare_container(mg_elements, (x.ElemRefObj, self, 'MGs'), elem_type=MgSig)
+        await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
         for i in range(mg_elements):
             # We save the MGs contents directly, because we want it to save its
             # arrays and matrices without the size prefixes, and the load can't
@@ -365,27 +366,27 @@ class RctSigPrunable(x.MessageType):
             if ar.writing and len(self.MGs[i].ss) != mixin + 1:
                 raise ValueError('MGs size mismatch')
 
-            await ar.prepare_container(mg_elements, (x.ElemRefObj, self.MGs[i], 'ss'), elem_type=KeyM)
+            await ar.prepare_container(mg_elements, eref(self.MGs[i], 'ss'), elem_type=KeyM)
             for j in range(mixin + 1):
                 mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
-                await ar.prepare_container(mg_ss2_elements, (x.ElemRefArr, self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
+                await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
 
                 if ar.writing and len(self.MGs[i].ss[j] != mg_ss2_elements):
                     raise ValueError('MGs size mismatch 2')
 
                 for k in range(mg_ss2_elements):
-                    await ar.field((x.ElemRefArr, self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
+                    await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
 
             await ar.tag('cc')
-            await ar.field((x.ElemRefObj, self.MGs[i], 'cc'), elem_type=ECKey)
+            await ar.field(eref(self.MGs[i], 'cc'), elem_type=ECKey)
 
         if type == RctType.SimpleBulletproof:
-            await ar.prepare_container(inputs, (x.ElemRefObj, self, 'pseudoOuts'), elem_type=KeyV)
+            await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
                 raise ValueError('pseudoOuts size mismatch')
 
             for i in range(inputs):
-                await ar.field((x.ElemRefArr, self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
+                await ar.field(eref(self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
 
 
 class RctSig(RctSigBase):
@@ -409,8 +410,8 @@ class Signature(x.MessageType):
         :type ar: x.Archive
         :return:
         """
-        ar.field((x.ElemRefObj, self, 'c'), ECKey)
-        ar.field((x.ElemRefObj, self, 'r'), ECKey)
+        ar.field(eref(self, 'c'), ECKey)
+        ar.field(eref(self, 'r'), ECKey)
 
 
 class SignatureArray(x.ContainerType):
