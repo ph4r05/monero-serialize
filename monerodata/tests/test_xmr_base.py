@@ -8,6 +8,7 @@ import pkg_resources
 import asyncio
 import aiounittest
 
+from .test_data import XmrTestData
 from .. import xmrserialize as x
 from .. import xmrtypes as xmr
 
@@ -20,18 +21,10 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
 
     def __init__(self, *args, **kwargs):
         super(XmrTypesBaseTest, self).__init__(*args, **kwargs)
-        self.ec_offset = 0
+        self.test_data = XmrTestData()
 
     def setUp(self):
-        self.ec_offset = 0
-
-    def generate_rand_ec_key(self, use_offset=True):
-        offset = 0
-        if use_offset:
-            offset = self.ec_offset
-            self.ec_offset += 1
-
-        return bytearray(range(offset, offset+32))
+        self.test_data.reset()
 
     async def test_simple_msg(self):
         """
@@ -130,18 +123,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         TransactionPrefix
         :return:
         """
-        vin = [
-            xmr.TxinToKey(amount=123, key_offsets=[1, 2, 3, 2 ** 76], k_image=bytearray(range(32))),
-            xmr.TxinToKey(amount=456, key_offsets=[9, 8, 7, 6], k_image=bytearray(range(32, 64))),
-            xmr.TxinGen(height=99)
-        ]
-
-        vout = [
-            xmr.TxOut(amount=11, target=xmr.TxoutToKey(key=bytearray(range(32)))),
-            xmr.TxOut(amount=34, target=xmr.TxoutToKey(key=bytearray(range(64,96)))),
-        ]
-
-        msg = xmr.TransactionPrefix(version=2, unlock_time=10, vin=vin, vout=vout, extra=list(range(31)))
+        msg = self.test_data.gen_transaction_prefix()
 
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)
@@ -163,10 +145,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         BoroSig
         :return:
         """
-        ee = self.generate_rand_ec_key()
-        s0 = [self.generate_rand_ec_key() for _ in range(64)]
-        s1 = [self.generate_rand_ec_key() for _ in range(64)]
-        msg = xmr.BoroSig(s0=s0, s1=s1, ee=ee)
+        msg = self.test_data.gen_borosig()
 
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)

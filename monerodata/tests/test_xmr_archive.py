@@ -8,6 +8,7 @@ import pkg_resources
 import asyncio
 import aiounittest
 
+from .test_data import XmrTestData
 from .. import xmrserialize as x
 from .. import xmrtypes as xmr
 
@@ -20,18 +21,10 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
 
     def __init__(self, *args, **kwargs):
         super(XmrTypesBaseTest, self).__init__(*args, **kwargs)
-        self.ec_offset = 0
+        self.test_data = XmrTestData()
 
     def setUp(self):
-        self.ec_offset = 0
-
-    def generate_rand_ec_key(self, use_offset=True):
-        offset = 0
-        if use_offset:
-            offset = self.ec_offset
-            self.ec_offset += 1
-
-        return bytearray(range(offset, offset + 32))
+            self.test_data.reset()
 
     async def test_simple_msg(self):
         """
@@ -56,10 +49,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         BoroSig
         :return:
         """
-        ee = self.generate_rand_ec_key()
-        s0 = [self.generate_rand_ec_key() for _ in range(64)]
-        s1 = [self.generate_rand_ec_key() for _ in range(64)]
-        msg = xmr.BoroSig(s0=s0, s1=s1, ee=ee)
+        msg = self.test_data.gen_borosig()
 
         writer = x.MemoryReaderWriter()
         ar1 = x.Archive(writer, True)
@@ -70,7 +60,9 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         await ar2.message(msg2)
 
         self.assertEqual(msg, msg2)
-        
+
+
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
