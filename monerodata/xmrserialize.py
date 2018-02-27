@@ -162,6 +162,10 @@ class BlobType:
             raise ValueError()
         if len(args) > 0:
             setattr(self, self.DATA_ATTR, args[0])
+        if 'SIZE' in kwargs:
+            self.SIZE = kwargs['SIZE']
+        if 'FIX_SIZE' in kwargs:
+            self.FIX_SIZE = kwargs['FIX_SIZE']
 
     def __eq__(self, rhs):
         return eq_obj_contents(self, rhs)
@@ -228,6 +232,14 @@ class ContainerType:
     FIX_SIZE = 0
     SIZE = 0
     ELEM_TYPE = None
+
+    def __init__(self, *args, **kwargs):
+        if 'SIZE' in kwargs:
+            self.SIZE = kwargs['SIZE']
+        if 'FIX_SIZE' in kwargs:
+            self.FIX_SIZE = kwargs['FIX_SIZE']
+        if 'ELEM_TYPE' in kwargs:
+            self.ELEM_TYPE = kwargs['ELEM_TYPE']
 
 
 class MessageType:
@@ -595,9 +607,11 @@ async def dump_blob(writer, elem, elem_type, params=None):
     """
     if hasattr(elem, 'serialize_dump'):
         return await elem.serialize_dump(writer)
-    if not elem_type.FIX_SIZE:
+
+    elem_is_blob = isinstance(elem, BlobType)
+    if (elem_is_blob and not elem.FIX_SIZE) or (not elem_is_blob and not elem_type.FIX_SIZE):
         await dump_uvarint(writer, len(elem))
-    data = getattr(elem, BlobType.DATA_ATTR) if isinstance(elem, BlobType) else elem
+    data = getattr(elem, BlobType.DATA_ATTR) if elem_is_blob else elem
     await writer.awrite(data)
 
 
