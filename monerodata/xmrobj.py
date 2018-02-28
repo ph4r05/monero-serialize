@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-Monero JSON codec.
+Monero serialization to object representation.
 
-Note: This is not optimized for memory usage.
+Note: This is not optimized for memory usage. No streaming support.
 Used for debugging.
 '''
 
