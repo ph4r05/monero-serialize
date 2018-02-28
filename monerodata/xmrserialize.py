@@ -90,11 +90,15 @@ def slot_obj_dict(o):
     return d
 
 
-class UVarintType:
+class XmrType:
+    pass
+
+
+class UVarintType(XmrType):
     WIRE_TYPE = 1
 
 
-class IntType:
+class IntType(XmrType):
     WIRE_TYPE = 2
     WIDTH = 0
     SIGNED = 0
@@ -145,7 +149,7 @@ class Int64(IntType):
     WIDTH = 8
 
 
-class BlobType:
+class BlobType(XmrType):
     """
     Binary data
 
@@ -178,11 +182,11 @@ class BlobType:
         return '<%s: %s>' % (self.__class__.__name__, dct)
 
 
-class UnicodeType:
+class UnicodeType(XmrType):
     WIRE_TYPE = 4
 
 
-class VariantType:
+class VariantType(XmrType):
     """
     Union of types, variant tags needed. is only one of the types. List in typedef, enum.
     Wraps the variant type in order to unambiguously support variant of variants.
@@ -225,7 +229,7 @@ class VariantType:
         return '<%s: %s>' % (self.__class__.__name__, dct)
 
 
-class ContainerType:
+class ContainerType(XmrType):
     """
     Array of elements
     Represented as a real array in the data structures, not wrapped in the ContainerType.
@@ -245,7 +249,7 @@ class ContainerType:
             self.ELEM_TYPE = kwargs['ELEM_TYPE']
 
 
-class MessageType:
+class MessageType(XmrType):
     WIRE_TYPE = 7
     FIELDS = {}
 
