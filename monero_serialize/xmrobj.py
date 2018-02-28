@@ -110,7 +110,12 @@ async def dump_container(obj, container, container_type, params=None, field_arch
     elem_type = params[0] if params else None
     if elem_type is None:
         elem_type = container_type.ELEM_TYPE
-    return [await field_archiver(None, elem, elem_type, params[1:] if params else None) for elem in container]
+
+    obj = [] if obj is None else get_elem(obj)
+    for elem in container:
+        fvalue = await field_archiver(None, elem, elem_type, params[1:] if params else None)
+        obj.append(fvalue)
+    return obj
 
 
 async def load_container(obj, container_type, params=None, container=None, field_archiver=None):
