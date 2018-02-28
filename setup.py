@@ -34,11 +34,11 @@ except(IOError, ImportError):
         long_description = f.read()
 
 setup(
-    name='monero-data',
+    name='monero-serialize',
     version=version,
     description='Monero serialization',
     long_description=long_description,
-    url='https://github.com/crocs-muni/roca',
+    url='https://github.com/ph4r05/monero-serialize',
     author='Dusan Klinec',
     author_email='dusan.klinec@gmail.com',
     license='MIT',
