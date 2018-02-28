@@ -9,7 +9,6 @@ Used for debugging.
 
 import base64
 import collections
-import json
 
 from . import xmrserialize as x
 from .xmrserialize import eref, get_elem, set_elem
