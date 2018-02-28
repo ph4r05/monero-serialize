@@ -38,6 +38,11 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
 
+        popo = json.loads(js)
+        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        self.assertIsNotNone(msg2)
+        self.assertEqual(msg, msg2)
+
     async def test_tx_prefix(self):
         """
         TransactionPrefix
@@ -48,6 +53,11 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
 
+        popo = json.loads(js)
+        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        self.assertIsNotNone(msg2)
+        self.assertEqual(msg, msg2)
+
     async def test_boro_sig(self):
         """
         BoroSig
@@ -57,6 +67,11 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         msg_dict = await xmrjs.dump_message(None, msg)
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
+
+        popo = json.loads(js)
+        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        self.assertIsNotNone(msg2)
+        self.assertEqual(msg, msg2)
 
 
 if __name__ == "__main__":
