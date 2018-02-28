@@ -369,7 +369,7 @@ def eref(obj, key):
 
 
 class Archive(object):
-    def __init__(self, iobj, writing=True):
+    def __init__(self, iobj, writing=True, **kwargs):
         self.writing = writing
         self.iobj = iobj
 
