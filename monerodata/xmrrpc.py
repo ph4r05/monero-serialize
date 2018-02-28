@@ -10,6 +10,17 @@ The original codec is not streaming in a sense directly translating input to obj
 
 Portable storage is an intermediate object.
 
+Mainly related to:
+
+/contrib/epee/include/serialization/keyvalue_serialization.h
+/contrib/epee/include/serialization/keyvalue_serialization_overloads.h
+/contrib/epee/include/storages/portable_storage.h
+/contrib/epee/include/storages/portable_storage_base.h
+/contrib/epee/include/storages/portable_storage_from_bin.h
+/contrib/epee/include/storages/portable_storage_from_json.h
+/contrib/epee/include/storages/portable_storage_to_bin.h
+/contrib/epee/include/storages/portable_storage_to_json.h
+
 ...Not finished yet...
 '''
 

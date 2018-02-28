@@ -12,6 +12,7 @@ import aiounittest
 from .test_data import XmrTestData
 from .. import xmrserialize as x
 from .. import xmrtypes as xmr
+from .. import xmrobj as xmro
 from .. import xmrjson as xmrjs
 
 
@@ -34,12 +35,12 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         :return:
         """
         msg = xmr.TxinGen(height=42)
-        msg_dict = await xmrjs.dump_message(None, msg)
+        msg_dict = await xmro.dump_message(None, msg)
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
 
         popo = json.loads(js)
-        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        msg2 = await xmro.load_message(popo, msg.__class__)
         self.assertIsNotNone(msg2)
         self.assertEqual(msg, msg2)
 
@@ -49,12 +50,12 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         :return:
         """
         msg = self.test_data.gen_transaction_prefix()
-        msg_dict = await xmrjs.dump_message(None, msg)
+        msg_dict = await xmro.dump_message(None, msg)
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
 
         popo = json.loads(js)
-        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        msg2 = await xmro.load_message(popo, msg.__class__)
         self.assertIsNotNone(msg2)
         self.assertEqual(msg, msg2)
 
@@ -64,12 +65,12 @@ class XmrJsonTest(aiounittest.AsyncTestCase):
         :return:
         """
         msg = self.test_data.gen_borosig()
-        msg_dict = await xmrjs.dump_message(None, msg)
+        msg_dict = await xmro.dump_message(None, msg)
         js = xmrjs.json_dumps(msg_dict, indent=2)
         self.assertTrue(len(js) > 0)
 
         popo = json.loads(js)
-        msg2 = await xmrjs.load_message(popo, msg.__class__)
+        msg2 = await xmro.load_message(popo, msg.__class__)
         self.assertIsNotNone(msg2)
         self.assertEqual(msg, msg2)
 
