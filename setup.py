@@ -14,6 +14,7 @@ dev_extras = [
     'nose',
     'pep8',
     'tox',
+    'aiounittest',
 ]
 
 docs_extras = [
