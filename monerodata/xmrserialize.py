@@ -470,14 +470,9 @@ class Archive(object):
         :return:
         """
         if self.writing:
-            await dump_uvarint(self.iobj, len(elem))
-            await self.iobj.awrite(bytes(elem, 'utf8'))
+            return await dump_unicode(self.iobj, elem)
         else:
-            ivalue = await load_uvarint(self.iobj)
-            fvalue = bytearray(ivalue)
-            await self.iobj.areadinto(fvalue)
-            fvalue = str(fvalue, 'utf8')
-            return fvalue
+            return await load_unicode(self.iobj)
 
     async def blob(self, elem=None, elem_type=None, params=None):
         """
@@ -688,6 +683,29 @@ async def load_blob(reader, elem_type, params=None, elem=None):
         elem.extend(fvalue)
 
     return elem
+
+
+async def dump_unicode(writer, elem):
+    """
+    Dumps string as UTF8 encoded string
+    :param writer:
+    :param elem:
+    :return:
+    """
+    await dump_uvarint(writer, len(elem))
+    await writer.awrite(bytes(elem, 'utf8'))
+
+
+async def load_unicode(reader):
+    """
+    Loads UTF8 string
+    :param reader:
+    :return:
+    """
+    ivalue = await load_uvarint(reader)
+    fvalue = bytearray(ivalue)
+    await reader.areadinto(fvalue)
+    return str(fvalue, 'utf8')
 
 
 async def dump_container(writer, container, container_type, params=None, field_archiver=None):
@@ -911,8 +929,7 @@ async def dump_field(writer, elem, elem_type, params=None):
         await dump_blob(writer, elem, elem_type, params)
 
     elif issubclass(elem_type, UnicodeType):
-        await dump_uvarint(writer, len(elem))
-        await writer.awrite(bytes(elem, 'utf8'))
+        await dump_unicode(elem)
 
     elif issubclass(elem_type, VariantType):
         await dump_variant(writer, elem, elem_type, params)
@@ -950,10 +967,7 @@ async def load_field(reader, elem_type, params=None, elem=None):
         return set_elem(elem, fvalue)
 
     elif issubclass(elem_type, UnicodeType):
-        ivalue = await load_uvarint(reader)
-        fvalue = bytearray(ivalue)
-        await reader.areadinto(fvalue)
-        fvalue = str(fvalue, 'utf8')
+        fvalue = await load_unicode(reader)
         return set_elem(elem, fvalue)
 
     elif issubclass(elem_type, VariantType):
