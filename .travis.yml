@@ -1,0 +1,11 @@
+language: python
+python:
+  - "pypy"
+  - "3.5"
+  - "3.6"
+  - "pypy3"
+install:
+  - pip install .
+script:
+  - PYTHONPATH=.:$PYTHONPATH exec ./test-travis.sh
+
