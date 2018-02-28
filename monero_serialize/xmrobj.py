@@ -15,9 +15,56 @@ from .xmrserialize import eref, get_elem, set_elem
 
 
 class Archive(x.Archive):
+    """
+    Archive object for object binary serialization / deserialization.
+    Resembles Archive API from the Monero codebase or Boost serialization archive.
 
+    The design goal is to provide uniform API both for serialization and deserialization
+    so the code is not duplicated for serialization and deserialization but the same
+    for both ways in order to minimize potential bugs in the code.
+
+    In order to use the archive for both ways we have to use so-called field references
+    as we cannot directly modify given element as a parameter (value-passing) as its performed
+    in C++ code. see: eref(), get_elem(), set_elem()
+    """
     def __init__(self, iobj, writing=True, **kwargs):
         super().__init__(iobj, writing, **kwargs)
+        self.res = collections.OrderedDict()
+
+    async def tag(self, tag):
+        """
+        TODO: implement
+        :param tag:
+        :return:
+        """
+
+    async def begin_array(self):
+        """
+        Mark start of the array. Used for JSON serialization.
+        TODO: implement
+        :return:
+        """
+
+    async def end_array(self):
+        """
+        Mark end of the array. Used for JSON serialization.
+        TODO: implement
+        :return:
+        """
+
+    async def begin_object(self):
+        """
+        Mark start of the object. Used for JSON serialization.
+        TODO: implement
+        :return:
+        """
+
+    async def end_object(self):
+        """
+        Mark end of the object. Used for JSON serialization.
+        TODO: implement
+        :return:
+        """
 
 
 async def dump_blob(elem, elem_type=None):
