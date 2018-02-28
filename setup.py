@@ -7,7 +7,7 @@ version = '0.0.1'
 
 # Please update tox.ini when modifying dependency version requirements
 install_requires = [
-
+    'aiounittest',
 ]
 
 dev_extras = [
