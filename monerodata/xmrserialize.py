@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 '''
-Extremely minimal streaming codec for a Monero serialization.
+Minimal streaming codec for a Monero binary serialization.
+Used for a binary serialization in blockchain and for hash computation for signatures.
 
-For de-sererializing (loading) protobuf types, object with `AsyncReader`
+Equivalent of BEGIN_SERIALIZE_OBJECT(), /src/serialization/serialization.h
+
+For de-sererializing (loading) types, object with `AsyncReader`
 interface is required:
 
 >>> class AsyncReader:
