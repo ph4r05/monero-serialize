@@ -14,7 +14,6 @@ Portable storage is an intermediate object.
 '''
 
 
-from .protobuf import const, load_uvarint, dump_uvarint, LimitedReader, CountingWriter
 from . import xmrserialize as x
 from .xmrserialize import eref
 
@@ -282,7 +281,7 @@ async def load_container(reader, container_type, params=None, container=None, fi
     """
     field_archiver = field_archiver if field_archiver else load_field
 
-    c_len = container_type.SIZE if container_type.FIX_SIZE else await load_uvarint(reader)
+    c_len = container_type.SIZE if container_type.FIX_SIZE else await load_varint(reader)
     if container and c_len != len(container):
         raise ValueError('Size mismatch')
 

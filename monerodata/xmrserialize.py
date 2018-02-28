@@ -33,7 +33,7 @@ required:
 >>>         """
 '''
 
-from .protobuf import const, load_uvarint, dump_uvarint, LimitedReader, CountingWriter
+from .protobuf import const, load_uvarint, dump_uvarint
 
 
 _UINT_BUFFER = bytearray(1)
