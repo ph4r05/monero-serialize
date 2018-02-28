@@ -669,9 +669,6 @@ async def dump_blob(writer, elem, elem_type, params=None):
     :param params:
     :return:
     """
-    if hasattr(elem, 'serialize_dump'):
-        return await elem.serialize_dump(writer)
-
     elem_is_blob = isinstance(elem, BlobType)
     elem_params = elem if elem_is_blob or elem_type is None else elem_type
     data = getattr(elem, BlobType.DATA_ATTR) if elem_is_blob else elem
@@ -693,10 +690,6 @@ async def load_blob(reader, elem_type, params=None, elem=None):
     :param elem:
     :return:
     """
-    if hasattr(elem_type, 'serialize_load'):
-        elem = elem_type() if elem is None else elem
-        return await elem.serialize_load(reader)
-
     ivalue = elem_type.SIZE if elem_type.FIX_SIZE else await load_uvarint(reader)
     fvalue = bytearray(ivalue)
     await reader.areadinto(fvalue)
@@ -748,8 +741,6 @@ async def dump_container(writer, container, container_type, params=None, field_a
     :param field_archiver:
     :return:
     """
-    if hasattr(container, 'serialize_dump'):
-        return await container.serialize_dump(writer)
     if not container_type.FIX_SIZE:
         await dump_uvarint(writer, len(container))
     elif len(container) != container_type.SIZE:
@@ -775,10 +766,6 @@ async def load_container(reader, container_type, params=None, container=None, fi
     :param field_archiver:
     :return:
     """
-    if hasattr(container_type, 'serialize_load'):
-        container = container_type() if container is None else container
-        return await container.serialize_load(reader)
-
     field_archiver = field_archiver if field_archiver else load_field
 
     c_len = container_type.SIZE if container_type.FIX_SIZE else await load_uvarint(reader)
@@ -846,9 +833,6 @@ async def dump_message(writer, msg, field_archiver=None):
     :param field_archiver:
     :return:
     """
-    if hasattr(msg, 'serialize_dump'):
-        return await msg.serialize_dump(writer)
-
     mtype = msg.__class__
     fields = mtype.FIELDS
 
@@ -868,9 +852,6 @@ async def load_message(reader, msg_type, msg=None, field_archiver=None):
     :return:
     """
     msg = msg_type() if msg is None else msg
-    if hasattr(msg_type, 'serialize_load'):
-        return await msg.serialize_load(reader)
-
     fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
     for field in fields:
         await load_message_field(reader, msg, field, field_archiver=field_archiver)
@@ -890,9 +871,6 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
     :param field_archiver:
     :return:
     """
-    if hasattr(elem, 'serialize_dump'):
-        return await elem.serialize_dump(writer)
-
     field_archiver = field_archiver if field_archiver else dump_field
     if isinstance(elem, VariantType) or elem_type.WRAPS_VALUE:
         await dump_uvarint(writer, elem.variant_elem_type.VARIANT_CODE)
@@ -917,10 +895,6 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
     :param field_archiver:
     :return:
     """
-    if hasattr(elem_type, 'serialize_load'):
-        elem = elem_type() if elem is None else elem
-        return await elem.serialize_load(reader)
-
     is_wrapped = (isinstance(elem, VariantType) or elem_type.WRAPS_VALUE) if wrapped is None else wrapped
     if is_wrapped:
         elem = elem_type() if elem is None else elem
