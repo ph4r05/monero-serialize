@@ -295,11 +295,13 @@ class MemoryReaderWriter:
 
 
 class ElemRefObj:
-    pass
+    def __repr__(self):
+        return 'RefObj'
 
 
 class ElemRefArr:
-    pass
+    def __repr__(self):
+        return 'RefAssoc'
 
 
 def gen_elem_array(size, elem_type=None):
@@ -367,17 +369,20 @@ def set_elem(elem_ref, elem):
         return elem
 
 
-def eref(obj, key):
+def eref(obj, key, is_assoc=None):
     """
     Returns element reference
     :param obj:
     :param key:
+    :param is_assoc:
     :return:
     """
-    if isinstance(key, int):
-        return ElemRefArr, obj, key
+    if obj is None:
+        return None
+    if isinstance(key, int) or (is_assoc is not None and is_assoc):
+        return ElemRefArr, get_elem(obj), key
     else:
-        return ElemRefObj, obj, key
+        return ElemRefObj, get_elem(obj), key
 
 
 class Archive(object):
