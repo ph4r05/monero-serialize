@@ -6,6 +6,14 @@ Used for a binary serialization in blockchain and for hash computation for signa
 
 Equivalent of BEGIN_SERIALIZE_OBJECT(), /src/serialization/serialization.h
 
+- The wire binary format does not use tags. Structure has to be read from the binary stream
+with the scheme specified in order to parse the structure.
+
+- Heavily uses variable integer serialization - similar to the UTF8 or LZ4 number encoding.
+
+- Supports: blob, string, integer types - variable or fixed size, containers of elements,
+            variant types, messages of elements
+
 For de-sererializing (loading) types, object with `AsyncReader`
 interface is required:
 
@@ -15,7 +23,7 @@ interface is required:
 >>>         Reads `len(buffer)` bytes into `buffer`, or raises `EOFError`.
 >>>         """
 
-For serializing (dumping) protobuf types, object with `AsyncWriter` interface is
+For serializing (dumping) types, object with `AsyncWriter` interface is
 required:
 
 >>> class AsyncWriter:
@@ -373,6 +381,18 @@ def eref(obj, key):
 
 
 class Archive(object):
+    """
+    Archive object for object binary serialization / deserialization.
+    Resembles Archive API from the Monero codebase or Boost serialization archive.
+
+    The design goal is to provide uniform API both for serialization and deserialization
+    so the code is not duplicated for serialization and deserialization but the same
+    for both ways in order to minimize potential bugs in the code.
+
+    In order to use the archive for both ways we have to use so-called field references
+    as we cannot directly modify given element as a parameter (value-passing) as its performed
+    in C++ code. see: eref(), get_elem(), set_elem()
+    """
     def __init__(self, iobj, writing=True, **kwargs):
         self.writing = writing
         self.iobj = iobj
