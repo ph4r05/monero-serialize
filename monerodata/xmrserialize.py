@@ -768,7 +768,7 @@ async def load_container(reader, container_type, params=None, container=None, fi
     for i in range(c_len):
         fvalue = await field_archiver(reader, elem_type,
                                       params[1:] if params else None,
-                                      (ElemRefArr, res, i) if container else None)
+                                      eref(res, i) if container else None)
         if not container:
             res.append(fvalue)
     return res
@@ -809,7 +809,7 @@ async def load_message_field(reader, msg, field, field_archiver=None):
     params = field[2:]
 
     field_archiver = field_archiver if field_archiver else load_field
-    await field_archiver(reader, ftype, params, (ElemRefObj, msg, fname))
+    await field_archiver(reader, ftype, params, eref(msg, fname))
 
 
 async def dump_message(writer, msg, field_archiver=None):
