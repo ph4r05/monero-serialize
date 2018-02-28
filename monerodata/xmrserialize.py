@@ -908,7 +908,7 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
             if is_wrapped:
                 elem.set_variant(field[0], fvalue)
             return elem if is_wrapped else fvalue
-    raise ValueError('Unkown tag: %s' % tag)
+    raise ValueError('Unknown tag: %s' % tag)
 
 
 async def dump_field(writer, elem, elem_type, params=None):
