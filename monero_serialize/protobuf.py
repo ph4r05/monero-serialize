@@ -78,3 +78,18 @@ class CountingWriter:
         return nwritten
 
 
+class AHashWriter:
+
+    def __init__(self, hasher, sub_writer=None):
+        self.hasher = hasher
+        self.sub_writer = sub_writer
+
+    async def awrite(self, buf):
+        self.hasher.update(buf)
+        if self.sub_writer:
+            await self.sub_writer.awrite(buf)
+        return len(buf)
+
+    def get_digest(self, *args) -> bytes:
+        return self.hasher.digest(*args)
+
