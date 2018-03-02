@@ -248,6 +248,14 @@ class ContainerType(XmrType):
             self.ELEM_TYPE = kwargs['ELEM_TYPE']
 
 
+class TupleType(XmrType):
+    FIELDS = []  # simple types without file name
+
+    def __init__(self, *args, **kwargs):
+        if 'FIELDS' in kwargs:
+            self.FIELDS = kwargs['FIELDS']
+
+
 class MessageType(XmrType):
     FIELDS = {}
 
@@ -524,6 +532,22 @@ class Archive(object):
             return await load_container(self.iobj, container_type, params=params, container=container,
                                         field_archiver=self.load_field)
 
+    async def tuple(self, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps tuple
+        :return:
+        """
+        if hasattr(elem_type, 'serialize_archive'):
+            container = elem_type() if elem is None else elem
+            return await container.serialize_archive(self, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            return await dump_tuple(self.iobj, elem, elem_type, params,
+                                    field_archiver=self.dump_field)
+        else:
+            return await load_tuple(self.iobj, elem_type, params=params, elem=elem,
+                                    field_archiver=self.load_field)
+
     async def variant(self, elem=None, elem_type=None, params=None):
         """
         Loads/dumps variant type
@@ -630,6 +654,9 @@ class Archive(object):
 
         elif issubclass(elem_type, ContainerType):  # container ~ simple list
             fvalue = await self.container(container=get_elem(elem), container_type=elem_type, params=params)
+
+        elif issubclass(elem_type, TupleType):  # tuple ~ simple list
+            fvalue = await self.tuple(elem=get_elem(elem), elem_type=elem_type, params=params)
 
         elif issubclass(elem_type, MessageType):
             fvalue = await self.message(get_elem(elem))
@@ -772,6 +799,60 @@ async def load_container(reader, container_type, params=None, container=None, fi
                                       params[1:] if params else None,
                                       eref(res, i) if container else None)
         if not container:
+            res.append(fvalue)
+    return res
+
+
+async def dump_tuple(writer, elem, elem_type, params=None, field_archiver=None):
+    """
+    Dumps tuple of elements to the writer.
+
+    :param writer:
+    :param elem:
+    :param elem_type:
+    :param params:
+    :param field_archiver:
+    :return:
+    """
+    if len(elem) != len(elem_type.FIELDS):
+        raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+
+    field_archiver = field_archiver if field_archiver else dump_field
+    elem_fields = params[0] if params else None
+    if elem_fields is None:
+        elem_fields = elem_type.FIELDS
+    for idx, elem in enumerate(elem):
+        await field_archiver(writer, elem, elem_fields[idx], params[1:] if params else None)
+
+
+async def load_tuple(reader, elem_type, params=None, elem=None, field_archiver=None):
+    """
+    Loads tuple of elements from the reader. Supports the tuple ref.
+    Returns loaded tuple.
+
+    :param reader:
+    :param elem_type:
+    :param params:
+    :param container:
+    :param field_archiver:
+    :return:
+    """
+    field_archiver = field_archiver if field_archiver else load_field
+
+    c_len = len(elem_type.FIELDS)
+    if elem and c_len != len(elem):
+        raise ValueError('Size mismatch')
+
+    elem_fields = params[0] if params else None
+    if elem_fields is None:
+        elem_fields = elem_type.FIELDS
+
+    res = elem if elem else []
+    for i in range(c_len):
+        fvalue = await field_archiver(reader, elem_fields[i],
+                                      params[1:] if params else None,
+                                      eref(res, i) if elem else None)
+        if not elem:
             res.append(fvalue)
     return res
 
@@ -930,6 +1011,9 @@ async def dump_field(writer, elem, elem_type, params=None):
     elif issubclass(elem_type, ContainerType):  # container ~ simple list
         await dump_container(writer, elem, elem_type, params)
 
+    elif issubclass(elem_type, TupleType):  # container ~ simple list
+        await dump_tuple(writer, elem, elem_type, params)
+
     elif issubclass(elem_type, MessageType):
         await dump_message(writer, elem)
 
@@ -969,6 +1053,10 @@ async def load_field(reader, elem_type, params=None, elem=None):
 
     elif issubclass(elem_type, ContainerType):  # container ~ simple list
         fvalue = await load_container(reader, elem_type, params=params, container=get_elem(elem))
+        return set_elem(elem, fvalue)
+
+    elif issubclass(elem_type, TupleType):  # tuple ~ simple list
+        fvalue = await load_tuple(reader, elem_type, params=params, elem=get_elem(elem))
         return set_elem(elem, fvalue)
 
     elif issubclass(elem_type, MessageType):

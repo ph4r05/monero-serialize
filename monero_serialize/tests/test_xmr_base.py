@@ -87,6 +87,19 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(ec_data, ec_point2.data)
         self.assertEqual(ec_point, ec_point2)
 
+    async def test_tuple(self):
+        """
+        Simple tuple type
+        :return:
+        """
+        out_entry = [123, xmr.CtKey(dest=self.test_data.generate_ec_key(), mask=self.test_data.generate_ec_key())]
+        writer = x.MemoryReaderWriter()
+
+        await x.dump_tuple(writer, out_entry, xmr.OutputEntry)
+        test_deser = await x.load_tuple(x.MemoryReaderWriter(writer.buffer), xmr.OutputEntry)
+
+        self.assertEqual(out_entry, test_deser)
+
     async def test_txin_to_key(self):
         """
         TxinToKey

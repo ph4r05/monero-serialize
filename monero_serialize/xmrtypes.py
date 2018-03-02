@@ -470,3 +470,8 @@ class AccountPublicAddress(x.MessageType):
 
 
 
+class OutputEntry(x.TupleType):
+    FIELDS = [
+        x.UInt64, CtKey
+    ]
+
