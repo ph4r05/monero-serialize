@@ -112,12 +112,10 @@ class IntType(XmrType):
 
 
 class BoolType(IntType):
-    SIGNED = 0
     WIDTH = 1
 
 
 class UInt8(IntType):
-    SIGNED = 0
     WIDTH = 1
 
 
@@ -136,7 +134,6 @@ class Int16(IntType):
 
 
 class UInt32(IntType):
-    SIGNED = 0
     WIDTH = 4
 
 
@@ -146,7 +143,6 @@ class Int32(IntType):
 
 
 class UInt64(IntType):
-    SIGNED = 0
     WIDTH = 8
 
 
