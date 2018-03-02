@@ -103,11 +103,10 @@ class XmrType:
 
 
 class UVarintType(XmrType):
-    WIRE_TYPE = 1
+    pass
 
 
 class IntType(XmrType):
-    WIRE_TYPE = 2
     WIDTH = 0
     SIGNED = 0
 
@@ -128,7 +127,6 @@ class Int8(IntType):
 
 
 class UInt16(IntType):
-    WIRE_TYPE = 2
     WIDTH = 2
 
 
@@ -168,7 +166,6 @@ class BlobType(XmrType):
     Supports also the wrapped version (__init__, DATA_ATTR, eq, repr...),
     """
     DATA_ATTR = 'data'
-    WIRE_TYPE = 3
     FIX_SIZE = 0
     SIZE = 0
 
@@ -191,7 +188,7 @@ class BlobType(XmrType):
 
 
 class UnicodeType(XmrType):
-    WIRE_TYPE = 4
+    pass
 
 
 class VariantType(XmrType):
@@ -200,7 +197,6 @@ class VariantType(XmrType):
     Wraps the variant type in order to unambiguously support variant of variants.
     Supports also unwrapped value using type system to distinguish variants - simplifies the construction.
     """
-    WIRE_TYPE = 5
     WRAPS_VALUE = False
     FIELDS = []
 
@@ -243,7 +239,6 @@ class ContainerType(XmrType):
     Represented as a real array in the data structures, not wrapped in the ContainerType.
     The Container type is used only as a schema descriptor for serialization.
     """
-    WIRE_TYPE = 6
     FIX_SIZE = 0
     SIZE = 0
     ELEM_TYPE = None
@@ -258,7 +253,6 @@ class ContainerType(XmrType):
 
 
 class MessageType(XmrType):
-    WIRE_TYPE = 7
     FIELDS = {}
 
     def __init__(self, **kwargs):
