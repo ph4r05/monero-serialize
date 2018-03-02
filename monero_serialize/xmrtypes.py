@@ -469,9 +469,78 @@ class AccountPublicAddress(x.MessageType):
     ]
 
 
+class SubaddressIndex(x.MessageType):
+    __slots__ = ['major', 'minor']
+    FIELDS = [
+        ('major', x.UVarintType),
+        ('minor', x.UVarintType),
+    ]
+
+
+class MultisigLR(x.MessageType):
+    __slots__ = ['L', 'R']
+    FIELDS = [
+        ('L', ECKey),
+        ('R', ECKey),
+    ]
+
+
+class MultisigInfo(x.MessageType):
+    __slots__ = ['signer', 'LR', 'partial_key_images']
+    FIELDS = [
+        ('signer', ECPoint),
+        ('LR', MultisigLR),
+        ('partial_key_images', x.ContainerType, ECPoint),
+    ]
+
 
 class OutputEntry(x.TupleType):
     FIELDS = [
         x.UInt64, CtKey
+    ]
+
+
+class TxSourceEntry(x.MessageType):
+    FIELDS = [
+        ('outputs', x.ContainerType, OutputEntry),
+        ('real_output', x.UInt64),
+        ('real_out_tx_key', ECPoint),
+        ('real_out_additional_tx_keys', x.ContainerType, ECPoint),
+        ('real_output_in_tx_index', x.UInt64),
+        ('amount', x.UInt64),
+        ('rct', x.BoolType),
+        ('mask', ECKey),
+        ('multisig_kLRki', MultisigKLRki),
+    ]
+
+
+class TxDestinationEntry(x.MessageType):
+    FIELDS = [
+        ('amount', x.UInt64),
+        ('account_public_address', AccountPublicAddress),
+        ('is_subaddress', x.BoolType),
+
+    ]
+
+
+class TransferDetails(x.MessageType):
+    FIELDS = [
+        ('m_block_height', x.UInt64),
+        ('m_tx', TransactionPrefix),
+        ('m_txid', Hash),
+        ('m_internal_output_index', x.UInt64),
+        ('m_global_output_index', x.UInt64),
+        ('m_spent', x.BoolType),
+        ('m_spent_height', x.UInt64),
+        ('m_key_image', ECPoint),
+        ('m_mask', ECKey),
+        ('m_amount', x.UInt64),
+        ('m_rct', x.BoolType),
+        ('m_key_image_known', x.BoolType),
+        ('m_pk_index', x.UInt64),
+        ('m_subaddr_index', SubaddressIndex),
+        ('m_key_image_partial', x.BoolType),
+        ('m_multisig_k', x.ContainerType, ECKey),
+        ('m_multisig_info', x.ContainerType, MultisigInfo),
     ]
 
