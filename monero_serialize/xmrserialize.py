@@ -457,23 +457,6 @@ class Archive(object):
             set_elem(container, fvalue)
             return fvalue
 
-    async def prepare_container_field(self, size, obj, name, elem_type=None):
-        """
-        Prepares container for serialization
-        :param size:
-        :param container:
-        :param elem_type:
-        :return:
-        """
-        if not self.writing:
-            container = getattr(obj, name)
-            if container is None:
-                setattr(obj, name, gen_elem_array(size, elem_type))
-                return
-
-            container += gen_elem_array(max(0, size - len(container)), elem_type)
-            return container
-
     async def uvarint(self, elem):
         """
         Uvarint
