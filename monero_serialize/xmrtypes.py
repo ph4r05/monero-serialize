@@ -494,16 +494,27 @@ class MultisigInfo(x.MessageType):
     ]
 
 
+class MultisigStruct(x.MessageType):
+    __slots__ = ['sigs', 'ignore', 'used_L', 'signing_keys', 'msout']
+    FIELDS = [
+        ('sigs', RctSig),
+        ('ignore', ECPoint),
+        ('used_L', x.ContainerType, ECKey),
+        ('signing_keys', x.ContainerType, ECKey),
+        ('msout', MultisigOut),
+    ]
+
+
 class OutputEntry(x.TupleType):
     FIELDS = [
-        x.UInt64, CtKey
+        x.UVarintType, CtKey  # Uint64 type
     ]
 
 
 class TxSourceEntry(x.MessageType):
     FIELDS = [
         ('outputs', x.ContainerType, OutputEntry),
-        ('real_output', x.UInt64),
+        ('real_output', x.SizeT),
         ('real_out_tx_key', ECPoint),
         ('real_out_additional_tx_keys', x.ContainerType, ECPoint),
         ('real_output_in_tx_index', x.UInt64),
@@ -542,5 +553,44 @@ class TransferDetails(x.MessageType):
         ('m_key_image_partial', x.BoolType),
         ('m_multisig_k', x.ContainerType, ECKey),
         ('m_multisig_info', x.ContainerType, MultisigInfo),
+    ]
+
+
+class TxConstructionData(x.MessageType):
+    FIELDS = [
+        ('sources', x.ContainerType, TxSourceEntry),
+        ('change_dts', TxDestinationEntry),
+        ('splitted_dsts', x.ContainerType, TxDestinationEntry),
+        ('selected_transfers', x.ContainerType, x.SizeT),
+        ('extra', x.ContainerType, x.UInt8),
+        ('unlock_time', x.UInt64),
+        ('use_rct', x.BoolType),
+        ('dests', x.ContainerType, TxDestinationEntry),
+        ('subaddr_account', x.UInt32),
+        ('subaddr_indices', x.ContainerType, x.UInt32),
+    ]
+
+
+class PendingTransaction(x.MessageType):
+    FIELDS = [
+        ('tx', Transaction),
+        ('dust', x.UInt64),
+        ('fee', x.UInt64),
+        ('dust_added_to_fee', x.BoolType),
+        ('change_dts', TxDestinationEntry),
+        ('selected_transfers', x.ContainerType, x.SizeT),
+        ('key_images', x.UnicodeType),
+        ('tx_key', ECKey),
+        ('additional_tx_keys', x.ContainerType, ECKey),
+        ('dests', x.ContainerType, TxDestinationEntry),
+        ('multisig_sigs', x.ContainerType, MultisigStruct),
+        ('construction_data', TxConstructionData),
+    ]
+
+
+class UnsignedTxSet(x.MessageType):
+    FIELDS = [
+        ('txes', x.ContainerType, TxConstructionData),
+        ('transfers', x.ContainerType, TransferDetails),
     ]
 
