@@ -282,17 +282,21 @@ class MemoryReaderWriter:
 
     def __init__(self, buffer=None):
         self.buffer = buffer if buffer else []
+        self.nread = 0
+        self.nwritten = 0
 
     async def areadinto(self, buf):
         ln = len(buf)
         nread = min(ln, len(self.buffer))
         for idx in range(nread):
             buf[idx] = self.buffer.pop(0)
+        self.nread += nread
         return nread
 
     async def awrite(self, buf):
         self.buffer.extend(buf)
         nwritten = len(buf)
+        self.nwritten += nwritten
         return nwritten
 
 
