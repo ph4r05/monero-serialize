@@ -816,6 +816,7 @@ async def dump_tuple(writer, elem, elem_type, params=None, field_archiver=None):
     """
     if len(elem) != len(elem_type.FIELDS):
         raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+    await dump_uvarint(writer, len(elem))
 
     field_archiver = field_archiver if field_archiver else dump_field
     elem_fields = params[0] if params else None
@@ -839,9 +840,11 @@ async def load_tuple(reader, elem_type, params=None, elem=None, field_archiver=N
     """
     field_archiver = field_archiver if field_archiver else load_field
 
-    c_len = len(elem_type.FIELDS)
+    c_len = await load_uvarint(reader)
     if elem and c_len != len(elem):
         raise ValueError('Size mismatch')
+    if c_len != len(elem_type.FIELDS):
+        raise ValueError('Tuple size mismatch')
 
     elem_fields = params[0] if params else None
     if elem_fields is None:
