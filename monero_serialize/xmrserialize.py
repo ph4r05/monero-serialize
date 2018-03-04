@@ -951,12 +951,12 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
     """
     field_archiver = field_archiver if field_archiver else dump_field
     if isinstance(elem, VariantType) or elem_type.WRAPS_VALUE:
-        await dump_uvarint(writer, elem.variant_elem_type.VARIANT_CODE)
+        await dump_uint(writer, elem.variant_elem_type.VARIANT_CODE, 1)
         await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
 
     else:
         fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
-        await dump_uvarint(writer, fdef[1].VARIANT_CODE)
+        await dump_uint(writer, fdef[1].VARIANT_CODE, 1)
         await field_archiver(writer, elem, fdef[1])
 
 
@@ -978,7 +978,7 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
         elem = elem_type() if elem is None else elem
 
     field_archiver = field_archiver if field_archiver else load_field
-    tag = await load_uvarint(reader)
+    tag = await load_uint(reader, 1)
     for field in elem_type.FIELDS:
         ftype = field[1]
         if ftype.VARIANT_CODE == tag:
