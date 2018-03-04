@@ -1042,6 +1042,12 @@ async def load_field(reader, elem_type, params=None, elem=None):
         fvalue = await load_uvarint(reader)
         return set_elem(elem, fvalue)
 
+    elif issubclass(elem_type, BoolType):
+        fvalue = await load_uint(reader, elem_type.WIDTH)
+        if fvalue != 0 and fvalue != 1:
+            raise ValueError('Unexpected bool value')
+        return set_elem(elem, fvalue)
+
     elif issubclass(elem_type, IntType):
         fvalue = await load_uint(reader, elem_type.WIDTH)
         return set_elem(elem, fvalue)
