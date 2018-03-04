@@ -166,6 +166,32 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.BoroSig)
         self.assertEqual(msg, test_deser)
 
+    async def test_transaction_prefix(self):
+        """
+
+        :return:
+        """
+        tsx_hex = b'013D01FF010680A0DB5002A9243CF5459DE5114E6A1AC08F9180C9F40A3CF9880778878104E9FEA578B6A780A8D6B90702AFEBACD6A4456AF979CCBE08D37A9A670BA421B5E39AB2968DF4219DD086018B8088ACA3CF020251748BADE758D1DD65A867FA3CEDD4878485BBC8307F905E3090A030290672798090CAD2C60E020C823CCBD4AB1A1F9240844400D72CDC8B498B3181B182B0B54A405B695406A680E08D84DDCB01022A9A926097548A723863923FBFEA4913B1134B2E4AE54946268DDA99564B5D8280C0CAF384A30202A868709A8BB91734AD3EBAC127638E018139E375C1987E01CCC2A8B04427727E2101F74BF5FB3DA064F48090D9B6705E598925313875B2B4F2A50EB0517264B0721C'
+        tsx_bin = base64.b16decode(tsx_hex, True)
+        reader = x.MemoryReaderWriter(bytearray(tsx_bin))
+        test_deser = await x.load_message(reader, xmr.TransactionPrefix)
+        self.assertIsNotNone(test_deser)
+        self.assertEqual(len(reader.buffer), 0)  # no data left to read
+        self.assertEqual(len(test_deser.extra), 33)
+        self.assertEqual(test_deser.extra[0], 1)
+        self.assertEqual(test_deser.extra[32], 28)
+        self.assertEqual(test_deser.unlock_time, 61)
+        self.assertEqual(test_deser.version, 1)
+        self.assertEqual(len(test_deser.vin), 1)
+        self.assertEqual(len(test_deser.vout), 6)
+        self.assertEqual(test_deser.vin[0].height, 1)
+        self.assertEqual(test_deser.vout[0].amount, 169267200)
+        self.assertEqual(len(test_deser.vout[0].target.key), 32)
+        self.assertEqual(test_deser.vout[1].amount, 2000000000)
+        self.assertEqual(len(test_deser.vout[1].target.key), 32)
+        self.assertEqual(test_deser.vout[5].amount, 10000000000000)
+        self.assertEqual(len(test_deser.vout[5].target.key), 32)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
