@@ -146,6 +146,10 @@ class UInt64(IntType):
     WIDTH = 8
 
 
+class SizeT(UInt64):
+    WIDTH = 8
+
+
 class Int64(IntType):
     SIGNED = 1
     WIDTH = 8
