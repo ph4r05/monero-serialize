@@ -577,21 +577,22 @@ class Archive(object):
             return await load_variant(self.iobj, elem_type=elem_type if elem_type else elem.__class__,
                                       params=params, elem=elem, field_archiver=self.load_field)
 
-    async def message(self, msg):
+    async def message(self, msg, msg_type=None):
         """
         Loads/dumps message
         :param msg:
+        :param msg_type:
         :return:
         """
-        elem_type = msg.__class__
+        elem_type = msg_type if msg_type is not None else msg.__class__
         if hasattr(elem_type, 'serialize_archive'):
             msg = elem_type() if msg is None else msg
             return await msg.serialize_archive(self)
 
         if self.writing:
-            return await dump_message(self.iobj, msg, field_archiver=self.dump_field)
+            return await dump_message(self.iobj, msg, msg_type=msg_type, field_archiver=self.dump_field)
         else:
-            return await load_message(self.iobj, msg.__class__, msg, field_archiver=self.load_field)
+            return await load_message(self.iobj, msg_type, msg=msg, field_archiver=self.load_field)
 
     async def message_field(self, msg, field):
         """
@@ -667,7 +668,7 @@ class Archive(object):
             fvalue = await self.tuple(elem=get_elem(elem), elem_type=elem_type, params=params)
 
         elif issubclass(elem_type, MessageType):
-            fvalue = await self.message(get_elem(elem))
+            fvalue = await self.message(get_elem(elem), msg_type=elem_type)
 
         else:
             raise TypeError
@@ -906,16 +907,17 @@ async def load_message_field(reader, msg, field, field_archiver=None):
     await field_archiver(reader, ftype, params, eref(msg, fname))
 
 
-async def dump_message(writer, msg, field_archiver=None):
+async def dump_message(writer, msg, msg_type=None, field_archiver=None):
     """
     Dumps message to the writer.
 
     :param writer:
     :param msg:
+    :param msg_type:
     :param field_archiver:
     :return:
     """
-    mtype = msg.__class__
+    mtype = msg.__class__ if msg_type is None else msg_type
     fields = mtype.FIELDS
 
     for field in fields:
@@ -1026,7 +1028,7 @@ async def dump_field(writer, elem, elem_type, params=None):
         await dump_tuple(writer, elem, elem_type, params)
 
     elif issubclass(elem_type, MessageType):
-        await dump_message(writer, elem)
+        await dump_message(writer, elem, elem_type)
 
     else:
         raise TypeError
