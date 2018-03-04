@@ -472,8 +472,8 @@ class AccountPublicAddress(x.MessageType):
 class SubaddressIndex(x.MessageType):
     __slots__ = ['major', 'minor']
     FIELDS = [
-        ('major', x.UVarintType),
-        ('minor', x.UVarintType),
+        ('major', x.UInt32),
+        ('minor', x.UInt32),
     ]
 
 
@@ -507,7 +507,7 @@ class MultisigStruct(x.MessageType):
 
 class OutputEntry(x.TupleType):
     FIELDS = [
-        x.UVarintType, CtKey  # Uint64 type
+        x.UVarintType, CtKey  # original: x.UInt64
     ]
 
 
@@ -539,7 +539,7 @@ class TransferDetails(x.MessageType):
         ('m_block_height', x.UInt64),
         ('m_tx', TransactionPrefix),
         ('m_txid', Hash),
-        ('m_internal_output_index', x.UInt64),
+        ('m_internal_output_index', x.SizeT),
         ('m_global_output_index', x.UInt64),
         ('m_spent', x.BoolType),
         ('m_spent_height', x.UInt64),
@@ -548,7 +548,7 @@ class TransferDetails(x.MessageType):
         ('m_amount', x.UInt64),
         ('m_rct', x.BoolType),
         ('m_key_image_known', x.BoolType),
-        ('m_pk_index', x.UInt64),
+        ('m_pk_index', x.SizeT),
         ('m_subaddr_index', SubaddressIndex),
         ('m_key_image_partial', x.BoolType),
         ('m_multisig_k', x.ContainerType, ECKey),
