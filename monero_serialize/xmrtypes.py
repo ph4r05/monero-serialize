@@ -527,7 +527,7 @@ class TxSourceEntry(x.MessageType):
 
 class TxDestinationEntry(x.MessageType):
     FIELDS = [
-        ('amount', x.UInt64),
+        ('amount', x.UVarintType),  # original: UInt64
         ('account_public_address', AccountPublicAddress),
         ('is_subaddress', x.BoolType),
 
@@ -567,7 +567,7 @@ class TxConstructionData(x.MessageType):
         ('use_rct', x.BoolType),
         ('dests', x.ContainerType, TxDestinationEntry),
         ('subaddr_account', x.UInt32),
-        ('subaddr_indices', x.ContainerType, x.UInt32),
+        ('subaddr_indices', x.ContainerType, x.UVarintType),  # original: x.UInt32
     ]
 
 
