@@ -913,6 +913,8 @@ async def dump_message(writer, msg, msg_type=None, field_archiver=None):
     """
     mtype = msg.__class__ if msg_type is None else msg_type
     fields = mtype.FIELDS
+    if hasattr(mtype, 'serialize_archive'):
+        raise ValueError('Cannot directly load, has to use archive with %s' % mtype)
 
     for field in fields:
         await dump_message_field(writer, msg=msg, field=field, field_archiver=field_archiver)
@@ -931,6 +933,9 @@ async def load_message(reader, msg_type, msg=None, field_archiver=None):
     """
     msg = msg_type() if msg is None else msg
     fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
+    if hasattr(msg_type, 'serialize_archive'):
+        raise ValueError('Cannot directly load, has to use archive with %s' % msg_type)
+
     for field in fields:
         await load_message_field(reader, msg, field, field_archiver=field_archiver)
 
