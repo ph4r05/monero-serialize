@@ -283,7 +283,7 @@ class RctSigBase(x.MessageType):
 
         await ar.tag('ecdhInfo')
         await ar.begin_array()
-        await ar.prepare_container(outputs, eref(self, 'ecdhInfo'), EcdhInfo)
+        await ar.prepare_container(outputs, eref(self, 'ecdhInfo'), EcdhTuple)
         if ar.writing and len(self.ecdhInfo) != outputs:
             raise ValueError('EcdhInfo size mismatch')
 
@@ -293,7 +293,7 @@ class RctSigBase(x.MessageType):
 
         await ar.tag('outPk')
         await ar.begin_array()
-        await ar.prepare_container((outputs), eref(self, 'outPk'), CtkeyV)
+        await ar.prepare_container((outputs), eref(self, 'outPk'), CtKey)
         if ar.writing and len(self.outPk) != outputs:
             raise ValueError('outPk size mismatch')
 
@@ -351,10 +351,10 @@ class RctSigPrunable(x.MessageType):
         else:
             await ar.tag('rangeSigs')
             await ar.begin_array()
+            await ar.prepare_container(outputs, eref(self, 'rangeSigs'), elem_type=RangeSig)
             if len(self.rangeSigs) != outputs:
                 raise ValueError('rangeSigs size mismatch')
 
-            await ar.prepare_container(outputs, eref(self, 'rangeSigs'), elem_type=RangeSig)
             for i in range(len(self.rangeSigs)):
                 await ar.field(elem=eref(self.rangeSigs, i), elem_type=RangeSig)
             await ar.end_array()
@@ -365,10 +365,10 @@ class RctSigPrunable(x.MessageType):
         # We keep a byte for size of MGs, because we don't know whether this is
         # a simple or full rct signature, and it's starting to annoy the hell out of me
         mg_elements = inputs if type == RctType.Simple or type == RctType.SimpleBulletproof else 1
+        await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
         if len(self.MGs) != mg_elements:
             raise ValueError('MGs size mismatch')
 
-        await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
         for i in range(mg_elements):
             # We save the MGs contents directly, because we want it to save its
             # arrays and matrices without the size prefixes, and the load can't
@@ -376,10 +376,11 @@ class RctSigPrunable(x.MessageType):
             await ar.begin_object()
             await ar.tag('ss')
             await ar.begin_array()
+
+            await ar.prepare_container(mg_elements, eref(self.MGs[i], 'ss'), elem_type=KeyM)
             if ar.writing and len(self.MGs[i].ss) != mixin + 1:
                 raise ValueError('MGs size mismatch')
 
-            await ar.prepare_container(mg_elements, eref(self.MGs[i], 'ss'), elem_type=KeyM)
             for j in range(mixin + 1):
                 await ar.begin_array()
                 mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
@@ -409,8 +410,8 @@ class RctSigPrunable(x.MessageType):
 
 
 class RctSig(RctSigBase):
-    __slots__ = ['p']
-    FIELDS = [
+    # noinspection PyTypeChecker
+    FIELDS = RctSigBase.FIELDS + [
         ('p', RctSigPrunable),
     ]
 
@@ -432,12 +433,78 @@ class SignatureArray(x.ContainerType):
     ELEM_TYPE = Signature
 
 
+def get_signature_size(msg):
+    """
+    Returns a signature size for the input
+    :param msg:
+    :return:
+    """
+    if isinstance(msg, (TxinGen, TxinToScript, TxinToScriptHash)):
+        return 0
+    elif isinstance(msg, TxinToKey):
+        return len(msg.key_offsets)
+    else:
+        raise ValueError('Unknown tx in')
+
+
 class Transaction(TransactionPrefix):
     # noinspection PyTypeChecker
     FIELDS = TransactionPrefix.FIELDS + [
         ('signatures', x.ContainerType, SignatureArray),
-        ('rct_signatures', RctSigBase),
+        ('rct_signatures', RctSig),
     ]
+
+    async def serialize_archive(self, ar):
+        """
+        Serialize the transaction
+        :param ar:
+        :type ar: x.Archive
+        :return:
+        """
+        # Transaction prefix serialization first.
+        await ar.message(self, TransactionPrefix)
+
+        if self.version == 1:
+            await ar.tag('signatures')
+            await ar.begin_array()
+            await ar.prepare_container(len(self.vin), eref(self, 'signatures'), elem_type=SignatureArray)
+            signatures_not_expected = len(self.signatures) == 0
+            if not signatures_not_expected and len(self.vin) != len(self.signatures):
+                raise ValueError('Signature size mismatch')
+
+            for i in range(len(self.vin)):
+                sig_size = get_signature_size(self.vin[i])
+                if signatures_not_expected:
+                    if 0 == sig_size:
+                        continue
+                    else:
+                        raise ValueError('Unexpected sig')
+
+                await ar.prepare_container(sig_size, eref(self.signatures, i), elem_type=Signature)
+                if sig_size != len(self.signatures[i]):
+                    raise ValueError('Unexpected sig size')
+
+                await ar.message(self.signatures[i], Signature)
+
+        else:
+            await ar.tag('rct_signatures')
+            if len(self.vin) == 0:
+                return
+
+            await ar.begin_object()
+            await ar.prepare_message(eref(self, 'rct_signatures'), RctSig)
+            await self.rct_signatures.serialize_rctsig_base(ar, len(self.vin), len(self.vout))
+            await ar.end_object()
+
+            if self.rct_signatures.type != RctType.Null:
+                mixin_size = len(self.vin[0].key_offsets) - 1 if len(self.vin) > 0 and isinstance(self.vin[0], TxinToKey) else 0
+                await ar.tag('rctsig_prunable')
+                await ar.begin_object()
+                await ar.prepare_message(eref(self.rct_signatures, 'p'), RctSigPrunable)
+                await self.rct_signatures.p.serialize_rctsig_prunable(ar, self.rct_signatures.type,
+                                                                      len(self.vin), len(self.vout),
+                                                                      mixin_size)
+                await ar.end_object()
 
 
 class BlockHeader(x.MessageType):
