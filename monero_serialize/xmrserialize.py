@@ -40,6 +40,12 @@ _UINT_BUFFER = bytearray(1)
 
 
 async def load_uint(reader, width):
+    """
+    Constant-width integer serialization
+    :param reader:
+    :param width:
+    :return:
+    """
     buffer = _UINT_BUFFER
     result = 0
     shift = 0
@@ -51,6 +57,13 @@ async def load_uint(reader, width):
 
 
 async def dump_uint(writer, n, width):
+    """
+    Constant-width integer serialization
+    :param writer:
+    :param n:
+    :param width:
+    :return:
+    """
     buffer = _UINT_BUFFER
     for _ in range(width):
         buffer[0] = n & 0xff
