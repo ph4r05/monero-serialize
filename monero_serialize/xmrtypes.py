@@ -377,7 +377,7 @@ class RctSigPrunable(x.MessageType):
             await ar.tag('ss')
             await ar.begin_array()
 
-            await ar.prepare_container(mg_elements, eref(self.MGs[i], 'ss'), elem_type=KeyM)
+            await ar.prepare_container(mixin + 1, eref(self.MGs[i], 'ss'), elem_type=KeyM)
             if ar.writing and len(self.MGs[i].ss) != mixin + 1:
                 raise ValueError('MGs size mismatch')
 
@@ -390,7 +390,7 @@ class RctSigPrunable(x.MessageType):
                     raise ValueError('MGs size mismatch 2')
 
                 for k in range(mg_ss2_elements):
-                    await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyM.ELEM_TYPE)
+                    await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyV.ELEM_TYPE)
                 await ar.end_array()
 
             await ar.tag('cc')
