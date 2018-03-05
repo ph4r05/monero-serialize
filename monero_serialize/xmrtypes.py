@@ -661,3 +661,8 @@ class UnsignedTxSet(x.MessageType):
         ('transfers', x.ContainerType, TransferDetails),
     ]
 
+
+class PendingTransactionVector(x.ContainerType):
+    ELEM_TYPE = PendingTransaction
+
+
