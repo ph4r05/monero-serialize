@@ -457,6 +457,17 @@ class Archive(object):
             set_elem(container, fvalue)
             return fvalue
 
+    async def prepare_message(self, msg, msg_type):
+        """
+        Prepares message for serialization
+        :param msg:
+        :param msg_type:
+        :return:
+        """
+        if self.writing:
+            return
+        return set_elem(msg, msg_type())
+
     async def uvarint(self, elem):
         """
         Uvarint
