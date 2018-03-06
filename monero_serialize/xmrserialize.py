@@ -112,7 +112,7 @@ def slot_obj_dict(o):
 
 
 class XmrType:
-    pass
+    VERSION = 0
 
 
 class UVarintType(XmrType):
