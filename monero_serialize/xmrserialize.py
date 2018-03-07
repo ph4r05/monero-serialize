@@ -122,6 +122,10 @@ class UVarintType(XmrType):
 class IntType(XmrType):
     WIDTH = 0
     SIGNED = 0
+    VARIABLE = 0
+
+    def __repr__(self):
+        return '%s:<w: %s, sig: %s, var: %s>' % (self.__class__, self.WIDTH, self.SIGNED, self.VARIABLE)
 
 
 class BoolType(IntType):
