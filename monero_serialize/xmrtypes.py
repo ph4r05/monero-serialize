@@ -595,7 +595,7 @@ class TxSourceEntry(x.MessageType):
 class TxDestinationEntry(x.MessageType):
     FIELDS = [
         ('amount', x.UVarintType),  # original: UInt64
-        ('account_public_address', AccountPublicAddress),
+        ('addr', AccountPublicAddress),
         ('is_subaddress', x.BoolType),
 
     ]
