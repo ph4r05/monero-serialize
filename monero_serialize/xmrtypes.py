@@ -652,6 +652,10 @@ class TxExtraField(x.VariantType):
     ]
 
 
+class TxExtraFields(x.ContainerType):
+    ELEM_TYPE = TxExtraField
+
+
 class OutputEntry(x.TupleType):
     FIELDS = [
         x.UVarintType, CtKey  # original: x.UInt64
