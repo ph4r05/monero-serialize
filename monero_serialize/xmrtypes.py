@@ -572,6 +572,86 @@ class MultisigStruct(x.MessageType):
     ]
 
 
+class TxExtraPadding(x.MessageType):
+    __slots__ = ['size']
+    TX_EXTRA_PADDING_MAX_COUNT = 255
+
+    VARIANT_CODE = 0x0
+    FIELDS = [
+        ('size', x.SizeT),
+    ]
+
+    async def serialize_archive(self, ar):
+        if ar.writing:
+            if self.size > self.TX_EXTRA_PADDING_MAX_COUNT:
+                raise ValueError('Padding too big')
+            for i in range(self.size):
+                ar.uint(0, x.UInt8)
+
+        else:
+            self.size = 0
+            buffer = bytearray(1)
+            for i in range(self.TX_EXTRA_PADDING_MAX_COUNT+1):
+                self.size += 1
+                try:
+                    nread = await ar.iobj.areadinto(buffer)
+                    if nread == 0:
+                        break
+                except EOFError:
+                    break
+
+                if buffer[0] != 0:
+                    raise ValueError('Padding error')
+
+
+class TxExtraPubKey(x.MessageType):
+    VARIANT_CODE = 0x1
+    FIELDS = [
+        ('pub_key', ECPoint),
+    ]
+
+
+class TxExtraNonce(x.MessageType):
+    VARIANT_CODE = 0x2
+    FIELDS = [
+        ('nonce', x.UnicodeType),
+    ]
+
+
+class TxExtraMergeMiningTag(x.MessageType):
+    VARIANT_CODE = 0x3
+    FIELDS = [
+        ('field_len', x.UVarintType),
+        ('depth', x.UVarintType),
+        ('merkle_root', Hash),
+    ]
+
+
+class TxExtraAdditionalPubKeys(x.MessageType):
+    VARIANT_CODE = 0x4
+    FIELDS = [
+        ('data', x.ContainerType, ECPoint),
+    ]
+
+
+class TxExtraMysteriousMinergate(x.MessageType):
+    VARIANT_CODE = 0xde
+    FIELDS = [
+        ('data', x.UnicodeType),
+    ]
+
+
+class TxExtraField(x.VariantType):
+    FIELDS = [
+        ('tx_extra_padding', TxExtraPadding),
+        ('tx_extra_pub_key', TxExtraPubKey),
+        ('tx_extra_nonce', TxExtraNonce),
+        ('tx_extra_merge_mining_tag', TxExtraMergeMiningTag),
+        ('tx_extra_additional_pub_keys', TxExtraAdditionalPubKeys),
+        ('tx_extra_mysterious_minergate', TxExtraMysteriousMinergate),
+    ]
+
+
 class OutputEntry(x.TupleType):
     FIELDS = [
         x.UVarintType, CtKey  # original: x.UInt64
