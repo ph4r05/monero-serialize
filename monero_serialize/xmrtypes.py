@@ -614,7 +614,7 @@ class TxExtraPubKey(x.MessageType):
 class TxExtraNonce(x.MessageType):
     VARIANT_CODE = 0x2
     FIELDS = [
-        ('nonce', x.UnicodeType),
+        ('nonce', x.BlobType),
     ]
 
 
@@ -637,7 +637,7 @@ class TxExtraAdditionalPubKeys(x.MessageType):
 class TxExtraMysteriousMinergate(x.MessageType):
     VARIANT_CODE = 0xde
     FIELDS = [
-        ('data', x.UnicodeType),
+        ('data', x.BlobType),
     ]
 
 
