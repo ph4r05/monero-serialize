@@ -77,7 +77,7 @@ def uvarint_size(n):
     :param n:
     :return:
     """
-    bts = 0
+    bts = 0 if n != 0 else 1
     while n:
         n >>= 7
         bts += 1
