@@ -389,7 +389,7 @@ class RctSigPrunable(x.MessageType):
                 mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
                 await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
 
-                if ar.writing and len(self.MGs[i].ss[j] != mg_ss2_elements):
+                if ar.writing and len(self.MGs[i].ss[j]) != mg_ss2_elements:
                     raise ValueError('MGs size mismatch 2')
 
                 for k in range(mg_ss2_elements):
