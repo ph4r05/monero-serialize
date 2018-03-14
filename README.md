@@ -1,5 +1,7 @@
 # Monero Python serialization library
 
+[![Build Status](https://travis-ci.org/ph4r05/monero-serialize.svg?branch=master)](https://travis-ci.org/ph4r05/monero-serialize)
+
 The library provides basic serialization logic for the Monero types,
 used in transaction processing and transaction signing.
 
