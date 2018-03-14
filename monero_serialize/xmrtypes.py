@@ -158,6 +158,7 @@ class KeyMFix(x.ContainerType):
 
 
 class CtKey(x.MessageType):
+    __slots__ = ['dest', 'mask']
     FIELDS = [
         ('dest', ECKey),
         ('mask', ECKey),
@@ -190,6 +191,7 @@ class MultisigOut(x.MessageType):
 
 
 class EcdhTuple(x.MessageType):
+    __slots__ = ['mask', 'amount']
     FIELDS = [
         ('mask', ECKey),
         ('amount', ECKey),
@@ -197,6 +199,7 @@ class EcdhTuple(x.MessageType):
 
 
 class BoroSig(x.MessageType):
+    __slots__ = ['s0', 's1', 'ee']
     FIELDS = [
         ('s0', Key64),
         ('s1', Key64),
@@ -530,6 +533,7 @@ class Block(BlockHeader):
 
 
 class AccountPublicAddress(x.MessageType):
+    __slots__ = ['m_spend_public_key', 'm_view_public_key']
     FIELDS = [
         ('m_spend_public_key', ECPoint),
         ('m_view_public_key', ECPoint),
@@ -605,6 +609,7 @@ class TxExtraPadding(x.MessageType):
 
 
 class TxExtraPubKey(x.MessageType):
+    __slots__ = ['pub_key']
     VARIANT_CODE = 0x1
     FIELDS = [
         ('pub_key', ECPoint),
@@ -612,6 +617,7 @@ class TxExtraPubKey(x.MessageType):
 
 
 class TxExtraNonce(x.MessageType):
+    __slots__ = ['nonce']
     VARIANT_CODE = 0x2
     FIELDS = [
         ('nonce', x.BlobType),
@@ -628,6 +634,7 @@ class TxExtraMergeMiningTag(x.MessageType):
 
 
 class TxExtraAdditionalPubKeys(x.MessageType):
+    __slots__ = ['data']
     VARIANT_CODE = 0x4
     FIELDS = [
         ('data', x.ContainerType, ECPoint),
@@ -635,6 +642,7 @@ class TxExtraAdditionalPubKeys(x.MessageType):
 
 
 class TxExtraMysteriousMinergate(x.MessageType):
+    __slots__ = ['data']
     VARIANT_CODE = 0xde
     FIELDS = [
         ('data', x.BlobType),
@@ -677,6 +685,7 @@ class TxSourceEntry(x.MessageType):
 
 
 class TxDestinationEntry(x.MessageType):
+    __slots__ = ['amount', 'addr', 'is_subaddress']
     FIELDS = [
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),
