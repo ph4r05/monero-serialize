@@ -501,6 +501,15 @@ def eref(obj, key, is_assoc=None):
         return ElemRefObj, get_elem(obj), key
 
 
+def get_ftype_params(field):
+    """
+    Convenient getter
+    :param field:
+    :return:
+    """
+    return field[1], field[2:]
+
+
 class Archive(object):
     """
     Archive object for object binary serialization / deserialization.
