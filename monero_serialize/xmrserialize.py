@@ -644,6 +644,38 @@ class Archive(object):
             return await load_container(self.iobj, container_type, params=params, container=container,
                                         field_archiver=self.load_field)
 
+    async def container_size(self, container_len=None, container_type=None, params=None):
+        """
+        Container size
+        :param container_len:
+        :param container_type:
+        :param params:
+        :return:
+        """
+        if hasattr(container_type, 'serialize_archive'):
+            raise ValueError('not supported')
+
+        if self.writing:
+            return await dump_container_size(self.iobj, container_len, container_type, params)
+        else:
+            raise ValueError('Not supported')
+
+    async def container_val(self, elem, container_type, params=None):
+        """
+        Single cont value
+        :param elem:
+        :param container_type:
+        :param params:
+        :param field_archiver:
+        :return:
+        """
+        if hasattr(container_type, 'serialize_archive'):
+            raise ValueError('not supported')
+        if self.writing:
+            return await dump_container_val(self.iobj, elem, container_type, params)
+        else:
+            raise ValueError('Not supported')
+
     async def tuple(self, elem=None, elem_type=None, params=None):
         """
         Loads/dumps tuple
@@ -860,6 +892,40 @@ async def load_unicode(reader):
     return str(fvalue, 'utf8')
 
 
+async def dump_container_size(writer, container_len, container_type, params=None):
+    """
+    Dumps container size - per element streaming
+    :param writer:
+    :param container:
+    :param container_type:
+    :param params:
+    :param field_archiver:
+    :return:
+    """
+    if not container_type or not container_type.FIX_SIZE:
+        await dump_uvarint(writer, container_len)
+    elif container_len != container_type.SIZE:
+        raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
+
+
+async def dump_container_val(writer, elem, container_type, params=None, field_archiver=None):
+    """
+    Single elem dump
+    :param writer:
+    :param elem:
+    :param container_type:
+    :param params:
+    :return:
+    """
+    field_archiver = field_archiver if field_archiver else dump_field
+
+    elem_type = params[0] if params else None
+    if elem_type is None:
+        elem_type = container_type.ELEM_TYPE
+
+    await field_archiver(writer, elem, elem_type, params[1:] if params else None)
+
+
 async def dump_container(writer, container, container_type, params=None, field_archiver=None):
     """
     Dumps container of elements to the writer.
@@ -871,12 +937,10 @@ async def dump_container(writer, container, container_type, params=None, field_a
     :param field_archiver:
     :return:
     """
-    if not container_type.FIX_SIZE:
-        await dump_uvarint(writer, len(container))
-    elif len(container) != container_type.SIZE:
-        raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
+    await dump_container_size(writer, len(container), container_type)
 
     field_archiver = field_archiver if field_archiver else dump_field
+
     elem_type = params[0] if params else None
     if elem_type is None:
         elem_type = container_type.ELEM_TYPE
