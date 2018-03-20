@@ -730,15 +730,16 @@ class Archive(object):
         else:
             return await load_message(self.iobj, msg_type, msg=msg, field_archiver=self.load_field)
 
-    async def message_field(self, msg, field):
+    async def message_field(self, msg, field, fvalue=None):
         """
         Dumps/Loads message field
         :param msg:
         :param field:
+        :param fvalue: explicit value for dump
         :return:
         """
         if self.writing:
-            await dump_message_field(self.iobj, msg, field, field_archiver=self.dump_field)
+            await dump_message_field(self.iobj, msg, field, fvalue=fvalue, field_archiver=self.dump_field)
         else:
             await load_message_field(self.iobj, msg, field, field_archiver=self.load_field)
 
@@ -1037,13 +1038,14 @@ async def load_tuple(reader, elem_type, params=None, elem=None, field_archiver=N
     return res
 
 
-async def dump_message_field(writer, msg, field, field_archiver=None):
+async def dump_message_field(writer, msg, field, fvalue=None, field_archiver=None):
     """
     Dumps a message field to the writer. Field is defined by the message field specification.
 
     :param writer:
     :param msg:
     :param field:
+    :param fvalue:
     :param field_archiver:
     :return:
     """
@@ -1051,7 +1053,7 @@ async def dump_message_field(writer, msg, field, field_archiver=None):
     ftype = field[1]
     params = field[2:]
 
-    fvalue = getattr(msg, fname, None)
+    fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
     field_archiver = field_archiver if field_archiver else dump_field
     await field_archiver(writer, fvalue, ftype, params)
 
