@@ -126,6 +126,13 @@ class TransactionPrefix(x.MessageType):
     ]
 
 
+class TransactionPrefixExtraBlob(TransactionPrefix):
+    # noinspection PyTypeChecker
+    FIELDS = TransactionPrefix.FIELDS[:-1] + [
+        ('extra', x.BlobType),
+    ]
+
+
 #
 # rctTypes.h
 #
