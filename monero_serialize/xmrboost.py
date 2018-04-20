@@ -4,6 +4,7 @@
 Monero Boost codec, portable binary archive
 '''
 
+import binascii
 import base64
 import collections
 import json
@@ -591,14 +592,24 @@ class Archive(x.Archive):
 
         :return:
         """
-
-
         if self.writing:
-            await self.iobj.
+            await self.iobj.awrite(binascii.unhexlify(b'011673657269616c697a6174696f6e3a3a6172636869766500000'))
+            return await self.message(msg, msg_type=msg_type)
 
         else:
+            hdr = bytearray(2)
+            await self.iobj.areadinto(hdr)
+            if hdr != bytearray(b'\x01\x16'):
+                raise ValueError('Unsupported header')
 
-            pass
+            hdr = bytearray(22)
+            await self.iobj.areadinto(hdr)
+            if hdr != bytearray(b'serialization::archive'):
+                raise ValueError('Unrecognized magic header')
+
+            tra = await load_uvarint(self.iobj)
+            ver = await load_uvarint(self.iobj)
+            return await self.message(msg, msg_type)
 
     async def message(self, msg, msg_type=None):
         """
