@@ -229,9 +229,9 @@ class Archive(x.Archive):
         :return:
         """
         if self.writing:
-            return self.set_version(tp, params, params)
+            return await self.set_version(tp, params, params)
         else:
-            return self.get_version(tp, params)
+            return await self.get_version(tp, params)
 
     async def uvarint(self, elem):
         """
@@ -347,7 +347,7 @@ class Archive(x.Archive):
         Loads/dumps container
         :return:
         """
-        version = self.version(container_type, params)
+        version = await self.version(container_type, params)
         if hasattr(container_type, 'boost_serialize'):
             container = container_type() if container is None else container
             return await container.boost_serialize(self, elem=container, elem_type=container_type, params=params, version=version)
@@ -454,7 +454,7 @@ class Archive(x.Archive):
         Loads/dumps tuple
         :return:
         """
-        version = self.version(elem_type, params)
+        version = await self.version(elem_type, params)
         if hasattr(elem_type, 'boost_serialize'):
             container = elem_type() if elem is None else elem
             return await container.boost_serialize(self, elem=elem, elem_type=elem_type, params=params, version=version)
@@ -525,7 +525,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
-        version = self.version(elem_type, params)
+        version = await self.version(elem_type, params)
 
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
@@ -608,7 +608,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = msg_type if msg_type is not None else msg.__class__
-        version = self.version(elem_type, None)
+        version = await self.version(elem_type, None)
 
         if hasattr(elem_type, 'boost_serialize'):
             msg = elem_type() if msg is None else msg
