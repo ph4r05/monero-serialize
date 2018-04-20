@@ -311,10 +311,10 @@ class Archive(x.Archive):
         elem_params = elem if elem_is_blob or elem_type is None else elem_type
         data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
 
-        if not elem_params.FIX_SIZE:
-            await dump_uvarint(self.iobj, len(elem))
-        elif len(data) != elem_params.SIZE:
+        if len(data) != elem_params.SIZE:
             raise ValueError('Fixed size blob has not defined size: %s' % elem_params.SIZE)
+
+        await dump_uvarint(self.iobj, len(elem))
         await self.iobj.awrite(data)
 
     async def blob_load(self, elem_type, params=None, elem=None):
@@ -327,7 +327,7 @@ class Archive(x.Archive):
         :param elem:
         :return:
         """
-        ivalue = elem_type.SIZE if elem_type.FIX_SIZE else await load_uvarint(self.iobj)
+        ivalue = await load_uvarint(self.iobj)
         fvalue = bytearray(ivalue)
         await self.iobj.areadinto(fvalue)
 
