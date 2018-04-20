@@ -283,7 +283,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
-        version = self.version(elem_type, params)
+        version = await self.version(elem_type, params)
 
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
