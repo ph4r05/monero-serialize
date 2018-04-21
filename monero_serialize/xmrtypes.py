@@ -813,6 +813,28 @@ class TransferDetails(x.MessageType):
         ('m_multisig_info', x.ContainerType, MultisigInfo),
     ]
 
+    async def boost_serialize(self, ar, version):
+        if version < 9:
+            raise ValueError('TransferDetails v9 supported only')
+        await self._msg_field(ar, 'm_block_height')
+        await self._msg_field(ar, 'm_global_output_index')
+        await self._msg_field(ar, 'm_internal_output_index')
+        await self._msg_field(ar, 'm_tx')
+        await self._msg_field(ar, 'm_spent')
+        await self._msg_field(ar, 'm_key_image')
+        await self._msg_field(ar, 'm_mask')
+        await self._msg_field(ar, 'm_amount')
+        await self._msg_field(ar, 'm_spent_height')
+        await self._msg_field(ar, 'm_txid')
+        await self._msg_field(ar, 'm_rct')
+        await self._msg_field(ar, 'm_key_image_known')
+        await self._msg_field(ar, 'm_pk_index')
+        await self._msg_field(ar, 'm_subaddr_index')
+        await self._msg_field(ar, 'm_multisig_info')
+        await self._msg_field(ar, 'm_multisig_k')
+        await self._msg_field(ar, 'm_key_image_partial')
+        return self
+
 
 class TxConstructionData(x.MessageType):
     BOOST_VERSION = 2
