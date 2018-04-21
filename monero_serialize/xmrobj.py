@@ -157,10 +157,7 @@ async def dump_message_field(obj, msg, field, field_archiver=None):
     :param field_archiver:
     :return:
     """
-    fname = field[0]
-    ftype = field[1]
-    params = field[2:]
-
+    fname, ftype, params = field[0], field[1], field[2:]
     fvalue = getattr(msg, fname, None)
     field_archiver = field_archiver if field_archiver else dump_field
     return await field_archiver(eref(obj, fname, True), fvalue, ftype, params)
@@ -177,10 +174,7 @@ async def load_message_field(obj, msg, field, field_archiver=None):
     :param field_archiver:
     :return:
     """
-    fname = field[0]
-    ftype = field[1]
-    params = field[2:]
-
+    fname, ftype, params = field[0], field[1], field[2:]
     field_archiver = field_archiver if field_archiver else load_field
     await field_archiver(obj[fname], ftype, params, eref(msg, fname))
 
