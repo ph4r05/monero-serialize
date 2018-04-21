@@ -399,6 +399,17 @@ class MessageType(XmrType):
         dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
         return '<%s: %s>' % (self.__class__.__name__, dct)
 
+    def _field(self, fname=None, idx=None):
+        fld = None
+        if fname is not None:
+            fld = [x for x in self.FIELDS if x[0] == fname][0]
+        elif idx is not None:
+            fld = self.FIELDS[idx]
+        return fld
+
+    async def _msg_field(self, ar, fname=None, idx=None):
+        return await ar.message_field(self, self._field(fname=fname, idx=idx))
+
 
 FLAG_REPEATED = const(1)
 
