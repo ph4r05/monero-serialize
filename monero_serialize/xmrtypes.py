@@ -72,6 +72,7 @@ class TxoutTargetV(x.VariantType):
 class TxinGen(x.MessageType):
     __slots__ = ['height']
     VARIANT_CODE = 0xff
+    BOOST_VARIANT_CODE = 0x0
     FIELDS = [
         ('height', x.UVarintType),
     ]
@@ -80,6 +81,7 @@ class TxinGen(x.MessageType):
 class TxinToKey(x.MessageType):
     __slots__ = ['amount', 'key_offsets', 'k_image']
     VARIANT_CODE = 0x2
+    BOOST_VARIANT_CODE = 0x3
     FIELDS = [
         ('amount', x.UVarintType),
         ('key_offsets', x.ContainerType, x.UVarintType),
@@ -90,12 +92,14 @@ class TxinToKey(x.MessageType):
 class TxinToScript(x.MessageType):
     __slots__ = []
     VARIANT_CODE = 0x0
+    BOOST_VARIANT_CODE = 0x1
     FIELDS = []
 
 
 class TxinToScriptHash(x.MessageType):
     __slots__ = []
     VARIANT_CODE = 0x1
+    BOOST_VARIANT_CODE = 0x2
     FIELDS = []
 
 
