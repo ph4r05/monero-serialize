@@ -174,6 +174,25 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.construction_data.splitted_dsts[1].amount, 99972803971000)
         self.assertEqual(len(msg.construction_data.subaddr_indices), 1)
 
+    async def test_tx_unsigned(self):
+        unsigned_tx_c = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_unsigned_01.txt'))
+        unsigned_tx = binascii.unhexlify(unsigned_tx_c)
+
+        reader = x.MemoryReaderWriter(bytearray(unsigned_tx))
+        ar = xmrb.Archive(reader, False)
+
+        msg = xmr.UnsignedTxSet()
+        await ar.root()
+        await ar.message(msg)
+        self.assertEqual(len(msg.transfers), 2)
+        self.assertEqual(msg.transfers[0].m_block_height, 1998)
+        self.assertEqual(msg.transfers[0].m_global_output_index, 701)
+        self.assertEqual(msg.transfers[1].m_block_height, 3312)
+        self.assertEqual(msg.transfers[1].m_global_output_index, 2026)
+        self.assertEqual(msg.transfers[1].m_amount, 1000000000000000)
+        self.assertEqual(msg.transfers[1].m_mask,
+                         bytearray([0x5c,0x2f,0x4b,0x93,0x26,0xd1,0xa3,0xd8,0x17,0x0d,0x1e,0x5b,0x69,0xb5,0x19,0x2c,0xba,0x9d,0x7c,0x48,0xf2,0xc7,0xc3,0xcf,0xdd,0x9d,0x1b,0xbd,0x4f,0x96,0xeb,0x00]))
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
