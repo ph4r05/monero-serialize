@@ -122,8 +122,8 @@ class TypeWrapper(object):
     def get_current_version(self):
         if hasattr(self.tp, 'boost_version'):
             return self.tp.boost_version()
-        if hasattr(self.tp, 'VERSION'):
-            return self.VERSION
+        if hasattr(self.tp, 'BOOST_VERSION'):
+            return self.BOOST_VERSION
         else:
             return 0
 

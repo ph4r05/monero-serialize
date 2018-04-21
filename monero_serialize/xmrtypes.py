@@ -625,6 +625,7 @@ class SubaddressIndex(x.MessageType):
 
 class MultisigLR(x.MessageType):
     __slots__ = ['L', 'R']
+    BOOST_VERSION = 0
     FIELDS = [
         ('L', ECKey),
         ('R', ECKey),
@@ -633,6 +634,7 @@ class MultisigLR(x.MessageType):
 
 class MultisigInfo(x.MessageType):
     __slots__ = ['signer', 'LR', 'partial_key_images']
+    BOOST_VERSION = 1
     FIELDS = [
         ('signer', ECPublicKey),
         ('LR', MultisigLR),
@@ -747,6 +749,7 @@ class OutputEntry(x.TupleType):
 
 
 class TxSourceEntry(x.MessageType):
+    BOOST_CLASS_VERSION = 1
     FIELDS = [
         ('outputs', x.ContainerType, OutputEntry),
         ('real_output', x.SizeT),
@@ -776,6 +779,7 @@ class TxSourceEntry(x.MessageType):
 
 class TxDestinationEntry(x.MessageType):
     __slots__ = ['amount', 'addr', 'is_subaddress']
+    BOOST_CLASS_VERSION = 1
     FIELDS = [
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),
@@ -784,6 +788,7 @@ class TxDestinationEntry(x.MessageType):
 
 
 class TransferDetails(x.MessageType):
+    BOOST_VERSION = 9
     FIELDS = [
         ('m_block_height', x.UInt64),
         ('m_tx', TransactionPrefix),
@@ -806,6 +811,7 @@ class TransferDetails(x.MessageType):
 
 
 class TxConstructionData(x.MessageType):
+    BOOST_VERSION = 2
     FIELDS = [
         ('sources', x.ContainerType, TxSourceEntry),
         ('change_dts', TxDestinationEntry),
@@ -836,6 +842,7 @@ class TxConstructionData(x.MessageType):
 
 
 class PendingTransaction(x.MessageType):
+    BOOST_VERSION = 3
     FIELDS = [
         ('tx', Transaction),
         ('dust', x.UInt64),
@@ -870,6 +877,7 @@ class PendingTransaction(x.MessageType):
 
 
 class UnsignedTxSet(x.MessageType):
+    BOOST_VERSION = 0
     FIELDS = [
         ('txes', x.ContainerType, TxConstructionData),
         ('transfers', x.ContainerType, TransferDetails),
