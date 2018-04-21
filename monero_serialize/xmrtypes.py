@@ -157,6 +157,7 @@ class TransactionPrefixExtraBlob(TransactionPrefix):
 class Key64(x.ContainerType):
     FIX_SIZE = 1
     SIZE = 64
+    BOOST_RAW_ARRAY = True
     ELEM_TYPE = ECKey
 
 
@@ -262,9 +263,24 @@ class Bulletproof(x.MessageType):
         ('t', ECKey),
     ]
 
+    async def boost_serialize(self, ar, version=None):
+        await ar.message_fields(self, [('V', ECKey)] + self.FIELDS)
+
 
 class EcdhInfo(x.ContainerType):
     ELEM_TYPE = EcdhTuple
+
+
+async def boost_out_pk(ar, out_pk, version):
+    if ar.writing:
+        out_pk_m = [k.mask for k in x.get_elem(out_pk)]
+        await ar.field(out_pk_m, KeyV)
+
+    else:
+        outs = await ar.field(None, KeyV)
+        pks = [CtKey(dest=b'\x01'+(b'\x00'*31), mask=k) for k in outs]
+        x.set_elem(out_pk, pks)
+        return pks
 
 
 class RctSigBase(x.MessageType):
@@ -326,6 +342,14 @@ class RctSigBase(x.MessageType):
         for i in range(outputs):
             await ar.field(eref(self.outPk[i], 'mask'), ECKey)
         await ar.end_array()
+
+    async def boost_serialize(self, ar, version=None):
+        await self._msg_field(ar, 'type')
+        if self.type == RctType.Simple:
+            await self._msg_field(ar, 'pseudoOuts')
+        await self._msg_field(ar, 'ecdhInfo')
+        await boost_out_pk(ar, eref(self, 'outPk'), version)
+        await self._msg_field(ar, 'txnFee')
 
 
 class RctType(object):
@@ -434,6 +458,14 @@ class RctSigPrunable(x.MessageType):
                 await ar.field(eref(self.pseudoOuts, i), elem_type=KeyV.ELEM_TYPE)
             await ar.end_array()
 
+    async def boost_serialize(self, ar, version):
+        await self._msg_field(ar, 'rangeSigs')
+        if self.rangeSigs is None or len(self.rangeSigs) == 0:
+            await self._msg_field(ar, 'bulletproofs')
+        await self._msg_field(ar, 'MGs')
+        if self.rangeSigs is None or len(self.rangeSigs) == 0:
+            await self._msg_field(ar, 'pseudoOuts')
+
 
 class RctSig(RctSigBase):
     # noinspection PyTypeChecker
@@ -539,8 +571,10 @@ class Transaction(TransactionPrefix):
             raise ValueError('TxV1 not supported')
 
         else:
+            self.rct_signatures = RctSigBase()
             await ar.message(self.rct_signatures, RctSigBase)
             if self.rct_signatures.type != RctType.Null:
+                self.rct_signatures.p = RctSigPrunable()
                 await ar.message(self.rct_signatures.p, RctSigPrunable)
 
 
