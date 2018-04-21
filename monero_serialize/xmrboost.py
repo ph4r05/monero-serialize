@@ -619,15 +619,16 @@ class Archive(x.Archive):
         await self.root()
         await self.message(msg, msg_type)
 
-    async def message(self, msg, msg_type=None):
+    async def message(self, msg, msg_type=None, use_version=None):
         """
         Loads/dumps message
         :param msg:
         :param msg_type:
+        :param use_version:
         :return:
         """
         elem_type = msg_type if msg_type is not None else msg.__class__
-        version = await self.version(elem_type, None)
+        version = await self.version(elem_type, None) if use_version is None else use_version
 
         if hasattr(elem_type, 'boost_serialize'):
             msg = elem_type() if msg is None else msg
