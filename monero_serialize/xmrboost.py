@@ -67,7 +67,7 @@ async def dump_uvarint(writer, n):
 
     # TODO: endianity, rev bytes if needed
     for _ in range(size):
-        buffer[0] = n & 0xff
+        buffer[0] = ll & 0xff
         await writer.awrite(buffer)
         ll >>= 8
 
