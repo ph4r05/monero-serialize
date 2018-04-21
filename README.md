@@ -144,6 +144,8 @@ class TxDestinationEntry(x.MessageType): pass;
 class TransferDetails(x.MessageType): pass;
 class TxConstructionData(x.MessageType): pass;
 class PendingTransaction(x.MessageType): pass;
-class UnsignedTxSet(x.MessageType): pass;
 class PendingTransactionVector(x.ContainerType): pass;
+class UnsignedTxSet(x.MessageType): pass;
+class SignedTxSet(x.MessageType): pass;
+class MultisigTxSet(x.MessageType): pass;
 ```
