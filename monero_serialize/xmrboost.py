@@ -427,12 +427,8 @@ class Archive(x.Archive):
         :return:
         """
         await self.container_size(len(container), container_type)
-        if not container_is_raw(container_type, params):
-            await dump_uvarint(self.iobj, 0)  # element version
 
-        elem_type = params[0] if params else None
-        if elem_type is None:
-            elem_type = container_type.ELEM_TYPE
+        elem_type = x.container_elem_type(container_type, params)
         for elem in container:
             await self._dump_field(elem, elem_type, params[1:] if params else None)
 
@@ -562,7 +558,8 @@ class Archive(x.Archive):
 
         else:
             fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
-            await dump_uvarint(self.iobj, fdef[1].VARIANT_CODE)
+            vcode = fdef[1].BOOST_VARIANT_CODE if hasattr(fdef[1], 'BOOST_VARIANT_CODE') else fdef[1].VARIANT_CODE
+            await dump_uvarint(self.iobj, vcode)
             await self._dump_field(elem, fdef[1])
 
     async def load_variant(self, elem_type, params=None, elem=None, wrapped=None):
