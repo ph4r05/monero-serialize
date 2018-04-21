@@ -36,11 +36,23 @@ class ECPoint(x.BlobType):
     SIZE = 32
 
 
+class ECPublicKey(ECPoint):
+    __slots__ = ['data']
+
+
+class KeyImage(ECPoint):
+    __slots__ = ['data']
+
+
+class KeyDerivation(ECPoint):
+    __slots__ = ['data']
+
+
 class TxoutToScript(x.MessageType):
     __slots__ = ['keys', 'script']
     VARIANT_CODE = 0x0
     FIELDS = [
-        ('keys', x.ContainerType, ECPoint),
+        ('keys', x.ContainerType, ECPublicKey),
         ('script', x.ContainerType, x.UInt8),
     ]
 
@@ -49,7 +61,7 @@ class TxoutToKey(x.MessageType):
     __slots__ = ['key']
     VARIANT_CODE = 0x2
     FIELDS = [
-        ('key', ECPoint),
+        ('key', ECPublicKey),
     ]
 
 
@@ -85,7 +97,7 @@ class TxinToKey(x.MessageType):
     FIELDS = [
         ('amount', x.UVarintType),
         ('key_offsets', x.ContainerType, x.UVarintType),
-        ('k_image', ECPoint),
+        ('k_image', KeyImage),
     ]
 
 
@@ -520,6 +532,17 @@ class Transaction(TransactionPrefix):
                                                                       mixin_size)
                 await ar.end_object()
 
+    async def boost_serialize(self, ar, version):
+        await ar.message(self, TransactionPrefix, use_version=version)
+
+        if self.version == 1:
+            raise ValueError('TxV1 not supported')
+
+        else:
+            await ar.message(self.rct_signatures, RctSigBase)
+            if self.rct_signatures.type != RctType.Null:
+                await ar.message(self.rct_signatures.p, RctSigPrunable)
+
 
 class BlockHeader(x.MessageType):
     FIELDS = [
@@ -546,8 +569,8 @@ class Block(BlockHeader):
 class AccountPublicAddress(x.MessageType):
     __slots__ = ['m_spend_public_key', 'm_view_public_key']
     FIELDS = [
-        ('m_spend_public_key', ECPoint),
-        ('m_view_public_key', ECPoint),
+        ('m_spend_public_key', ECPublicKey),
+        ('m_view_public_key', ECPublicKey),
     ]
 
 
@@ -570,9 +593,9 @@ class MultisigLR(x.MessageType):
 class MultisigInfo(x.MessageType):
     __slots__ = ['signer', 'LR', 'partial_key_images']
     FIELDS = [
-        ('signer', ECPoint),
+        ('signer', ECPublicKey),
         ('LR', MultisigLR),
-        ('partial_key_images', x.ContainerType, ECPoint),
+        ('partial_key_images', x.ContainerType, KeyImage),
     ]
 
 
@@ -580,9 +603,9 @@ class MultisigStruct(x.MessageType):
     __slots__ = ['sigs', 'ignore', 'used_L', 'signing_keys', 'msout']
     FIELDS = [
         ('sigs', RctSig),
-        ('ignore', ECPoint),
+        ('ignore', ECPublicKey),
         ('used_L', x.ContainerType, ECKey),
-        ('signing_keys', x.ContainerType, ECKey),
+        ('signing_keys', x.ContainerType, ECPublicKey),
         ('msout', MultisigOut),
     ]
 
@@ -623,7 +646,7 @@ class TxExtraPubKey(x.MessageType):
     __slots__ = ['pub_key']
     VARIANT_CODE = 0x1
     FIELDS = [
-        ('pub_key', ECPoint),
+        ('pub_key', ECPublicKey),
     ]
 
 
@@ -648,7 +671,7 @@ class TxExtraAdditionalPubKeys(x.MessageType):
     __slots__ = ['data']
     VARIANT_CODE = 0x4
     FIELDS = [
-        ('data', x.ContainerType, ECPoint),
+        ('data', x.ContainerType, ECPublicKey),
     ]
 
 
@@ -685,8 +708,8 @@ class TxSourceEntry(x.MessageType):
     FIELDS = [
         ('outputs', x.ContainerType, OutputEntry),
         ('real_output', x.SizeT),
-        ('real_out_tx_key', ECPoint),
-        ('real_out_additional_tx_keys', x.ContainerType, ECPoint),
+        ('real_out_tx_key', ECPublicKey),
+        ('real_out_additional_tx_keys', x.ContainerType, ECPublicKey),
         ('real_output_in_tx_index', x.UInt64),
         ('amount', x.UInt64),
         ('rct', x.BoolType),
@@ -714,7 +737,7 @@ class TransferDetails(x.MessageType):
         ('m_global_output_index', x.UInt64),
         ('m_spent', x.BoolType),
         ('m_spent_height', x.UInt64),
-        ('m_key_image', ECPoint),
+        ('m_key_image', KeyImage),
         ('m_mask', ECKey),
         ('m_amount', x.UInt64),
         ('m_rct', x.BoolType),
