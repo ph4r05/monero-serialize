@@ -384,7 +384,9 @@ class Archive(x.Archive):
         if self.writing:
             await dump_uvarint(self.iobj, container_len)
             if not container_is_raw(container_type, params):
-                await dump_uvarint(self.iobj, 0)  # element version
+                c_elem = x.container_elem_type(container_type, params)
+                c_ver = TypeWrapper(c_elem)
+                await dump_uvarint(self.iobj, c_ver.get_current_version())  # element version
 
             if container_type.FIX_SIZE and container_len != container_type.SIZE:
                 raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
@@ -425,7 +427,7 @@ class Archive(x.Archive):
         :param field_archiver:
         :return:
         """
-        await self.container_size(len(container), container_type)
+        await self.container_size(len(container), container_type, params)
 
         elem_type = x.container_elem_type(container_type, params)
         for elem in container:
