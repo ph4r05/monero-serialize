@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 '''
 XMR RPC serialization
+WARNING: Not finished yet
 
 {json, binary} <-> portable_storage <-> object
 
@@ -21,7 +22,7 @@ Mainly related to:
 /contrib/epee/include/storages/portable_storage_to_bin.h
 /contrib/epee/include/storages/portable_storage_to_json.h
 
-...Not finished yet...
+WARNING: Not finished yet
 '''
 
 
