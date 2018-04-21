@@ -581,10 +581,10 @@ class Transaction(TransactionPrefix):
             raise ValueError('TxV1 not supported')
 
         else:
-            self.rct_signatures = RctSigBase()
+            await ar.prepare_message(eref(self, 'rct_signatures'), RctSigBase)
             await ar.message(self.rct_signatures, RctSigBase)
             if self.rct_signatures.type != RctType.Null:
-                self.rct_signatures.p = RctSigPrunable()
+                await ar.prepare_message(eref(self.rct_signatures, 'p'), RctSigPrunable)
                 await ar.message(self.rct_signatures.p, RctSigPrunable)
         return self
 
