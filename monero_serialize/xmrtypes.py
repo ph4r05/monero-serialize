@@ -265,6 +265,7 @@ class Bulletproof(x.MessageType):
 
     async def boost_serialize(self, ar, version=None):
         await ar.message_fields(self, [('V', ECKey)] + self.FIELDS)
+        return self
 
 
 class EcdhInfo(x.ContainerType):
@@ -350,6 +351,7 @@ class RctSigBase(x.MessageType):
         await self._msg_field(ar, 'ecdhInfo')
         await boost_out_pk(ar, eref(self, 'outPk'), version)
         await self._msg_field(ar, 'txnFee')
+        return self
 
 
 class RctType(object):
@@ -465,6 +467,7 @@ class RctSigPrunable(x.MessageType):
         await self._msg_field(ar, 'MGs')
         if self.rangeSigs is None or len(self.rangeSigs) == 0:
             await self._msg_field(ar, 'pseudoOuts')
+        return self
 
 
 class RctSig(RctSigBase):
@@ -576,6 +579,7 @@ class Transaction(TransactionPrefix):
             if self.rct_signatures.type != RctType.Null:
                 self.rct_signatures.p = RctSigPrunable()
                 await ar.message(self.rct_signatures.p, RctSigPrunable)
+        return self
 
 
 class BlockHeader(x.MessageType):
