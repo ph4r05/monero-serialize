@@ -198,7 +198,7 @@ class Archive(x.Archive):
         if not self.version_db.is_versioned(tw):
             tr = await load_uvarint(self.iobj)
             if tr != 0:
-                raise ValueError('Unsupported tracking')
+                raise ValueError('Unsupported tracking for %s, tr: %s' % (tw, tr))
 
             ver = await load_uvarint(self.iobj)
 
