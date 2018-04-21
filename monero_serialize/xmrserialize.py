@@ -968,11 +968,7 @@ async def dump_container_val(writer, elem, container_type, params=None, field_ar
     :return:
     """
     field_archiver = field_archiver if field_archiver else dump_field
-
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
-
+    elem_type = container_elem_type(container_type, params)
     await field_archiver(writer, elem, elem_type, params[1:] if params else None)
 
 
@@ -990,10 +986,8 @@ async def dump_container(writer, container, container_type, params=None, field_a
     await dump_container_size(writer, len(container), container_type)
 
     field_archiver = field_archiver if field_archiver else dump_field
+    elem_type = container_elem_type(container_type, params)
 
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
     for elem in container:
         await field_archiver(writer, elem, elem_type, params[1:] if params else None)
 
@@ -1016,10 +1010,7 @@ async def load_container(reader, container_type, params=None, container=None, fi
     if container and c_len != len(container):
         raise ValueError('Size mismatch')
 
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
-
+    elem_type = container_elem_type(container_type, params)
     res = container if container else []
     for i in range(c_len):
         fvalue = await field_archiver(reader, elem_type,
