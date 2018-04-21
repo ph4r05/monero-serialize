@@ -386,7 +386,7 @@ class TupleType(XmrType):
 
 
 class MessageType(XmrType):
-    FIELDS = {}
+    FIELDS = []
 
     def __init__(self, **kwargs):
         for kw in kwargs:
