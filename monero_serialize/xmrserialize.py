@@ -204,6 +204,21 @@ def slot_obj_dict(o):
     return d
 
 
+def is_type(x, types, full=False):
+    """
+    Returns true if x is of type in types tuple
+    :param x:
+    :param types:
+    :param full:
+    :return:
+    """
+    types = types if isinstance(types, tuple) else (types, )
+    ins = isinstance(x, types)
+    sub = issubclass(x, types)
+    res = ins or sub
+    return res if not full else (res, ins)
+
+
 class XmrType:
     VERSION = 0
 
@@ -430,7 +445,7 @@ def gen_elem_array(size, elem_type=None):
     """
     if elem_type is None or not callable(elem_type):
         return [elem_type] * size
-    if isinstance(elem_type, ContainerType) or issubclass(elem_type, ContainerType):
+    if is_type(elem_type, ContainerType):
         elem_type = lambda: []
     res = []
     for _ in range(size):
