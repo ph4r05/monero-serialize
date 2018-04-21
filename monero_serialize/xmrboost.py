@@ -197,9 +197,10 @@ class Archive(x.Archive):
         # If not in the DB, load from archive at current position
         if not self.version_db.is_versioned(tw):
             tr = await load_uvarint(self.iobj)
-            ver = await load_uvarint(self.iobj)
             if tr != 0:
                 raise ValueError('Unsupported tracking')
+
+            ver = await load_uvarint(self.iobj)
 
             self.version_db.set_version(tw, tr, ver)
 
