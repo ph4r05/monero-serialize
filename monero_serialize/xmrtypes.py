@@ -5,7 +5,6 @@ XMR types
 '''
 
 
-from .protobuf import const, load_uvarint, dump_uvarint, LimitedReader, CountingWriter
 from . import xmrserialize as x
 from .xmrserialize import eref
 
