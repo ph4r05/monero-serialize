@@ -90,9 +90,9 @@ class TypeWrapper(object):
         :param elem_type:
         :return:
         """
-        if not issubclass(elem_type, x.XmrType):
+        if not x.is_type(elem_type, x.XmrType):
             return False
-        if issubclass(elem_type, (x.UVarintType, x.IntType, x.UnicodeType)):
+        if x.is_type(elem_type, (x.UVarintType, x.IntType, x.UnicodeType)):
             return True
         return False
 
@@ -253,7 +253,7 @@ class Archive(x.Archive):
         :param params:
         :return:
         """
-        one_b_type = isinstance(elem_type, (x.Int8, x.UInt8))
+        one_b_type = x.is_type(elem_type, (x.Int8, x.UInt8))
         if self.writing:
             return (await x.dump_uint(self.iobj, elem, 1)) if one_b_type else (await dump_uvarint(self.iobj, elem))
         else:
