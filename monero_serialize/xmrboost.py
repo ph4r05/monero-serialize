@@ -355,10 +355,8 @@ class Archive(x.Archive):
 
         # Container entry version + container
         if self.writing:
-            await dump_uvarint(self.iobj, 0)
             return await self.container_dump(container, container_type, params)
         else:
-            await load_uvarint(self.iobj)
             return await self.container_load(container_type, params=params, container=container)
 
     async def container_size(self, container_len=None, container_type=None, params=None):
@@ -375,6 +373,7 @@ class Archive(x.Archive):
         if self.writing:
             if not container_type or not container_type.FIX_SIZE:
                 await dump_uvarint(self.iobj, container_len)
+                await dump_uvarint(self.iobj, 0)  # element version
             elif container_len != container_type.SIZE:
                 raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
 
@@ -415,6 +414,7 @@ class Archive(x.Archive):
         :return:
         """
         await self.container_size(len(container), container_type)
+        await dump_uvarint(self.iobj, 0)  # element version
 
         elem_type = params[0] if params else None
         if elem_type is None:
@@ -434,8 +434,12 @@ class Archive(x.Archive):
         :return:
         """
         c_len = await load_uvarint(self.iobj)
-        if container and c_len != len(container):
-            raise ValueError('Size mismatch')
+        elem_ver = await load_uvarint(self.iobj)
+        if elem_ver != 0:
+            raise ValueError('Unsupported container element version')
+
+        # if container and c_len != len(container):
+        #     raise ValueError('Size mismatch')
 
         elem_type = params[0] if params else None
         if elem_type is None:
