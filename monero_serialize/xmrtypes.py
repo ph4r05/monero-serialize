@@ -51,6 +51,10 @@ class KeyDerivation(ECPoint):
     __slots__ = ['data']
 
 
+class UnorderedSet(x.ContainerType):
+    pass
+
+
 class TxoutToScript(x.MessageType):
     __slots__ = ['keys', 'script']
     VARIANT_CODE = 0x0
@@ -876,6 +880,10 @@ class PendingTransaction(x.MessageType):
         return self
 
 
+class PendingTransactionVector(x.ContainerType):
+    ELEM_TYPE = PendingTransaction
+
+
 class UnsignedTxSet(x.MessageType):
     BOOST_VERSION = 0
     FIELDS = [
@@ -884,7 +892,20 @@ class UnsignedTxSet(x.MessageType):
     ]
 
 
-class PendingTransactionVector(x.ContainerType):
-    ELEM_TYPE = PendingTransaction
+class SignedTxSet(x.MessageType):
+    BOOST_VERSION = 0
+    FIELDS = [
+        ('ptx', PendingTransactionVector),
+        ('key_images', x.ContainerType, KeyImage),
+    ]
+
+
+class MultisigTxSet(x.MessageType):
+    BOOST_VERSION = 0
+    FIELDS = [
+        ('m_ptx', PendingTransactionVector),
+        ('m_signers', UnorderedSet, ECPublicKey),
+    ]
+
 
 
