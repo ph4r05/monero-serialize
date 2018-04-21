@@ -488,9 +488,10 @@ class Signature(x.MessageType):
         ('r', ECKey),
     ]
 
-    def serialize_archive(self, ar):
+    async def serialize_archive(self, ar):
         ar.field(eref(self, 'c'), ECKey)
         ar.field(eref(self, 'r'), ECKey)
+        return self
 
 
 class SignatureArray(x.ContainerType):
@@ -570,6 +571,7 @@ class Transaction(TransactionPrefix):
                                                                       len(self.vin), len(self.vout),
                                                                       mixin_size)
                 await ar.end_object()
+        return self
 
     async def boost_serialize(self, ar, version):
         await ar.message(self, TransactionPrefix, use_version=version)
@@ -682,6 +684,7 @@ class TxExtraPadding(x.MessageType):
 
                 if buffer[0] != 0:
                     raise ValueError('Padding error')
+        return self
 
 
 class TxExtraPubKey(x.MessageType):
