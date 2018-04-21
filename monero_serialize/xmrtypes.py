@@ -306,16 +306,14 @@ class RctSigBase(x.MessageType):
         :type ar: x.Archive
         :return:
         """
-        await ar.field(eref(self, self.FIELDS[0][0]), self.FIELDS[0][1])
-
+        await self._msg_field(ar, idx=0)
         if self.type == RctType.Null:
             return
         if self.type != RctType.Full and self.type != RctType.FullBulletproof and \
                 self.type != RctType.Simple and self.type != RctType.SimpleBulletproof:
             raise ValueError('Unknown type')
 
-        await ar.field(eref(self, self.FIELDS[1][0]), self.FIELDS[1][1])
-
+        await self._msg_field(ar, idx=1)
         if self.type == RctType.Simple:
             await ar.tag('pseudoOuts')
             await ar.begin_array()

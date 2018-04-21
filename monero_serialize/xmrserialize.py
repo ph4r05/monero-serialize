@@ -14,7 +14,7 @@ with the scheme specified in order to parse the structure.
 - Supports: blob, string, integer types - variable or fixed size, containers of elements,
             variant types, messages of elements
 
-For de-sererializing (loading) types, object with `AsyncReader`
+For de-serializing (loading) types, object with `AsyncReader`
 interface is required:
 
 >>> class AsyncReader:
