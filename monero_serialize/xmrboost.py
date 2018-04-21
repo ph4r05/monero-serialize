@@ -583,7 +583,8 @@ class Archive(x.Archive):
         tag = await load_uvarint(self.iobj)
         for field in elem_type.FIELDS:
             ftype = field[1]
-            if ftype.VARIANT_CODE == tag:
+            vcode = ftype.BOOST_VARIANT_CODE if hasattr(ftype, 'BOOST_VARIANT_CODE') else ftype.VARIANT_CODE
+            if vcode == tag:
                 fvalue = await self._load_field(ftype, field[2:], elem if not is_wrapped else None)
                 if is_wrapped:
                     elem.set_variant(field[0], fvalue)
