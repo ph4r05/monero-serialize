@@ -382,12 +382,11 @@ class Archive(x.Archive):
             raise ValueError('not supported')
 
         if self.writing:
-            if not container_type or not container_type.FIX_SIZE:
-                await dump_uvarint(self.iobj, container_len)
-                if not container_is_raw(container_type, params):
-                    await dump_uvarint(self.iobj, 0)  # element version
+            await dump_uvarint(self.iobj, container_len)
+            if not container_is_raw(container_type, params):
+                await dump_uvarint(self.iobj, 0)  # element version
 
-            elif container_len != container_type.SIZE:
+            if container_type.FIX_SIZE and container_len != container_type.SIZE:
                 raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
 
         else:
