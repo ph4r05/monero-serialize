@@ -536,6 +536,20 @@ def get_ftype_params(field):
     return field[1], field[2:]
 
 
+def container_elem_type(container_type, params):
+    """
+    Returns container element type
+
+    :param container_type:
+    :param params:
+    :return:
+    """
+    elem_type = params[0] if params else None
+    if elem_type is None:
+        elem_type = container_type.ELEM_TYPE
+    return elem_type
+
+
 class Archive(object):
     """
     Archive object for object binary serialization / deserialization.

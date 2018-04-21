@@ -354,7 +354,7 @@ class Archive(x.Archive):
         :return:
         """
         # Container versioning is a bit tricky, primitive type containers are not versioned.
-        elem_type = container_elem_type(container_type, params)
+        elem_type = x.container_elem_type(container_type, params)
         raw_container = container_is_raw(container_type, params)
         elem_elementary = TypeWrapper.is_elementary_type(elem_type)
         is_versioned = not elem_elementary and not raw_container
@@ -454,7 +454,7 @@ class Archive(x.Archive):
         # if container and c_len != len(container):
         #     raise ValueError('Size mismatch')
 
-        elem_type = container_elem_type(container_type, params)
+        elem_type = x.container_elem_type(container_type, params)
         res = container if container else []
         for i in range(c_len):
             fvalue = await self._load_field(elem_type,
@@ -756,20 +756,6 @@ class Archive(x.Archive):
 
     async def _load_field(self, elem_type, params=None, elem=None):
         return await self.field(elem=elem, elem_type=elem_type, params=params)
-
-
-def container_elem_type(container_type, params):
-    """
-    Returns container element type
-
-    :param container_type:
-    :param params:
-    :return:
-    """
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
-    return elem_type
 
 
 def container_is_raw(container_type, params):
