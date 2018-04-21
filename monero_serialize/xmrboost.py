@@ -585,16 +585,13 @@ class Archive(x.Archive):
                 return elem if is_wrapped else fvalue
         raise ValueError('Unknown tag: %s' % tag)
 
-    async def root_message(self, msg, msg_type=None):
+    async def root(self):
         """
-        Root-level message. First entry in the archive.
-        Archive headers processing
-
+        Root level init
         :return:
         """
         if self.writing:
             await self.iobj.awrite(binascii.unhexlify(b'011673657269616c697a6174696f6e3a3a6172636869766500000'))
-            return await self.message(msg, msg_type=msg_type)
 
         else:
             hdr = bytearray(2)
@@ -609,7 +606,18 @@ class Archive(x.Archive):
 
             tra = await load_uvarint(self.iobj)
             ver = await load_uvarint(self.iobj)
-            return await self.message(msg, msg_type)
+            if tra != 0:
+                raise ValueError('Tracking not supported')
+
+    async def root_message(self, msg, msg_type=None):
+        """
+        Root-level message. First entry in the archive.
+        Archive headers processing
+
+        :return:
+        """
+        await self.root()
+        await self.message(msg, msg_type)
 
     async def message(self, msg, msg_type=None):
         """
