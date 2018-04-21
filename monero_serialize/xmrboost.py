@@ -235,7 +235,7 @@ class Archive(x.Archive):
         :return:
         """
         if self.writing:
-            return await self.set_version(tp, params, params)
+            return await self.set_version(tp, params)
         else:
             return await self.get_version(tp, params)
 
@@ -598,7 +598,7 @@ class Archive(x.Archive):
         :return:
         """
         if self.writing:
-            await self.iobj.awrite(binascii.unhexlify(b'011673657269616c697a6174696f6e3a3a6172636869766500000'))
+            await self.iobj.awrite(binascii.unhexlify(b'011673657269616c697a6174696f6e3a3a617263686976650000'))
 
         else:
             hdr = bytearray(2)
