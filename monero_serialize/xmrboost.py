@@ -433,7 +433,7 @@ class Archive(x.Archive):
         :param field_archiver:
         :return:
         """
-        c_len = container_type.SIZE if container_type.FIX_SIZE else await load_uvarint(self.iobj)
+        c_len = await load_uvarint(self.iobj)
         if container and c_len != len(container):
             raise ValueError('Size mismatch')
 
