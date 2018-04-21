@@ -84,6 +84,35 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg2.addr.m_spend_public_key, bytearray(b'\x11' + (b'\x00' * 30) + b'\xee'))
         self.assertEqual(msg2.addr.m_view_public_key, bytearray(b'\x33' + (b'\x00' * 30) + b'\xdd'))
 
+    async def test_tx_prefix(self):
+        """
+        Tx destinations, two records, versioning test.
+        :return:
+        """
+        data_hex = b'011673657269616c697a6174696f6e3a3a617263686976650000000001020000000101000000010300000001070002bd02021e01012402000101ed019b01380000012001000000000000000000000000000000000000000000000000000000000000000000010200000000000001020000000001208829dedf62f2c7e6b21556daed786143fb4c1c3ff95bde568b82860229c44b17000102012098d2c70dcef9fc62378ed2d49301a800f90cd8c9423c2b08dfef5f9635267978012c000209012f3413399032aeea0173e1bdbff7ceb9f62089f1cd1163aa48e2226ce9077d5abe11ce95cad8f34e0d'
+        data_bin = base64.b16decode(data_hex, True)
+        reader = x.MemoryReaderWriter(bytearray(data_bin))
+        ar = xmrb.Archive(reader, False)
+
+        msg = xmr.TransactionPrefix()
+        await ar.root()
+        await ar.message(msg)
+        self.assertEqual(msg.version, 2)
+        self.assertEqual(msg.unlock_time, 0)
+        self.assertEqual(len(msg.vin), 1)
+        self.assertEqual(len(msg.vout), 2)
+        self.assertEqual(len(msg.extra), 44)
+        self.assertEqual(msg.vin[0].amount, 0)
+        self.assertEqual(len(msg.vin[0].key_offsets), 7)
+        self.assertEqual(msg.vin[0].key_offsets[6], 56)
+        self.assertEqual(msg.vout[0].amount, 0)
+        self.assertEqual(msg.vout[1].amount, 0)
+        self.assertEqual(msg.vout[0].target.key,
+                         binascii.unhexlify(b'8829dedf62f2c7e6b21556daed786143fb4c1c3ff95bde568b82860229c44b17'))
+        self.assertEqual(msg.vout[1].target.key,
+                         binascii.unhexlify(b'98d2c70dcef9fc62378ed2d49301a800f90cd8c9423c2b08dfef5f9635267978'))
+        self.assertEqual(msg.extra, [ 2, 9, 1, 47, 52, 19, 57, 144, 50, 174, 234, 1, 115, 225, 189, 191, 247, 206, 185, 246, 32, 137, 241, 205, 17, 99, 170, 72, 226, 34, 108, 233, 7, 125, 90, 190, 17, 206, 149, 202, 216, 243, 78, 13])
+
 
 
 
