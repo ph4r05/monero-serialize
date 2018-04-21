@@ -34,9 +34,29 @@ print(binascii.hexlify(writer.buffer))
 test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinGen)
 ```
 
+### Archive interface
+
+```python
+import binascii
+from monero_serialize import xmrserialize as x
+from monero_serialize import xmrtypes as xmr
+
+msg = xmr.TxinGen(height=42)
+
+# Serialize
+writer = x.MemoryReaderWriter()
+ar1 = x.Archive(writer, True)
+await ar1.message(msg)
+
+# Deserialize
+msg2 = xmr.TxinGen()
+ar2 = x.Archive(x.MemoryReaderWriter(writer.buffer), False)
+await ar2.message(msg2)
+```
+
 ### Symmetric Boost archive
 
-```
+```python
 import binascii
 from monero_serialize import xmrserialize as x
 from monero_serialize import xmrtypes as xmr
