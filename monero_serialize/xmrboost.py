@@ -358,9 +358,11 @@ class Archive(x.Archive):
         """
         # Container versioning is a bit tricky, primitive type containers are not versioned.
         elem_type = container_elem_type(container_type, params)
+        raw_container = container_is_raw(container_type, params)
         elem_elementary = TypeWrapper.is_elementary_type(elem_type)
+        is_versioned = not elem_elementary and not raw_container
 
-        version = await self.version(container_type, params) if not elem_elementary else None
+        version = await self.version(container_type, params) if is_versioned else None
         if hasattr(container_type, 'boost_serialize'):
             container = container_type() if container is None else container
             return await container.boost_serialize(self, elem=container, elem_type=container_type, params=params, version=version)
@@ -385,7 +387,9 @@ class Archive(x.Archive):
         if self.writing:
             if not container_type or not container_type.FIX_SIZE:
                 await dump_uvarint(self.iobj, container_len)
-                await dump_uvarint(self.iobj, 0)  # element version
+                if not container_is_raw(container_type, params):
+                    await dump_uvarint(self.iobj, 0)  # element version
+
             elif container_len != container_type.SIZE:
                 raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
 
@@ -426,7 +430,8 @@ class Archive(x.Archive):
         :return:
         """
         await self.container_size(len(container), container_type)
-        await dump_uvarint(self.iobj, 0)  # element version
+        if not container_is_raw(container_type, params):
+            await dump_uvarint(self.iobj, 0)  # element version
 
         elem_type = params[0] if params else None
         if elem_type is None:
@@ -445,8 +450,9 @@ class Archive(x.Archive):
         :param field_archiver:
         :return:
         """
+        raw_container = container_is_raw(container_type, params)
         c_len = await load_uvarint(self.iobj)
-        elem_ver = await load_uvarint(self.iobj)
+        elem_ver = await load_uvarint(self.iobj) if not raw_container else 0
         if elem_ver != 0:
             raise ValueError('Unsupported container element version')
 
@@ -777,4 +783,14 @@ def container_elem_type(container_type, params):
     if elem_type is None:
         elem_type = container_type.ELEM_TYPE
     return elem_type
+
+
+def container_is_raw(container_type, params):
+    """
+    Returns true if container is statically allocated array
+    :param container_type:
+    :param params:
+    :return:
+    """
+    return container_type.BOOST_RAW_ARRAY if hasattr(container_type, 'BOOST_RAW_ARRAY') else False
 
