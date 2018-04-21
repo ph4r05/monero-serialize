@@ -753,7 +753,7 @@ class OutputEntry(x.TupleType):
 
 
 class TxSourceEntry(x.MessageType):
-    BOOST_CLASS_VERSION = 1
+    BOOST_VERSION = 1
     FIELDS = [
         ('outputs', x.ContainerType, OutputEntry),
         ('real_output', x.SizeT),
@@ -783,7 +783,7 @@ class TxSourceEntry(x.MessageType):
 
 class TxDestinationEntry(x.MessageType):
     __slots__ = ['amount', 'addr', 'is_subaddress']
-    BOOST_CLASS_VERSION = 1
+    BOOST_VERSION = 1
     FIELDS = [
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),

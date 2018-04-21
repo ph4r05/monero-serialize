@@ -123,7 +123,7 @@ class TypeWrapper(object):
         if hasattr(self.tp, 'boost_version'):
             return self.tp.boost_version()
         if hasattr(self.tp, 'BOOST_VERSION'):
-            return self.BOOST_VERSION
+            return self.tp.BOOST_VERSION
         else:
             return 0
 
