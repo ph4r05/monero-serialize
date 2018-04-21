@@ -5,9 +5,6 @@ Monero Boost codec, portable binary archive
 '''
 
 import binascii
-import base64
-import collections
-import json
 
 from . import xmrserialize as x
 
