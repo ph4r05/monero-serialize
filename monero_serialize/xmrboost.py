@@ -486,16 +486,13 @@ class Archive(x.Archive):
         """
         Dumps tuple of elements to the writer.
 
-        :param writer:
         :param elem:
         :param elem_type:
         :param params:
-        :param field_archiver:
         :return:
         """
         if len(elem) != len(elem_type.FIELDS):
             raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
-        await dump_uvarint(self.iobj, len(elem))
 
         elem_fields = params[0] if params else None
         if elem_fields is None:
@@ -508,25 +505,20 @@ class Archive(x.Archive):
         Loads tuple of elements from the reader. Supports the tuple ref.
         Returns loaded tuple.
 
-        :param reader:
         :param elem_type:
         :param params:
-        :param container:
-        :param field_archiver:
+        :param elem:
         :return:
         """
-        c_len = await load_uvarint(self.iobj)
-        if elem and c_len != len(elem):
-            raise ValueError('Size mismatch')
-        if c_len != len(elem_type.FIELDS):
-            raise ValueError('Tuple size mismatch')
-
         elem_fields = params[0] if params else None
         if elem_fields is None:
             elem_fields = elem_type.FIELDS
 
+        if elem and len(elem_fields) != len(elem):
+            raise ValueError('Size mismatch')
+
         res = elem if elem else []
-        for i in range(c_len):
+        for i in range(len(elem_fields)):
             fvalue = await self._load_field(elem_fields[i],
                                             params[1:] if params else None,
                                             x.eref(res, i) if elem else None)
