@@ -32,6 +32,9 @@ async def load_uvarint(reader):
     result = 0
     shift = 0
 
+    if size > 8:
+        raise ValueError('Varint size too big')
+
     # TODO: endianity, rev bytes if needed
     for _ in range(size):
         await reader.areadinto(buffer)
