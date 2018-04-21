@@ -36,6 +36,10 @@ class ECPoint(x.BlobType):
     SIZE = 32
 
 
+class SecretKey(ECKey):
+    __slots__ = ['bytes']
+
+
 class ECPublicKey(ECPoint):
     __slots__ = ['data']
 
@@ -762,7 +766,6 @@ class TxDestinationEntry(x.MessageType):
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),
         ('is_subaddress', x.BoolType),
-
     ]
 
 
@@ -812,8 +815,8 @@ class PendingTransaction(x.MessageType):
         ('change_dts', TxDestinationEntry),
         ('selected_transfers', x.ContainerType, x.SizeT),
         ('key_images', x.UnicodeType),
-        ('tx_key', ECKey),
-        ('additional_tx_keys', x.ContainerType, ECKey),
+        ('tx_key', SecretKey),
+        ('additional_tx_keys', x.ContainerType, SecretKey),
         ('dests', x.ContainerType, TxDestinationEntry),
         ('multisig_sigs', x.ContainerType, MultisigStruct),
         ('construction_data', TxConstructionData),
