@@ -71,3 +71,79 @@ msg = xmr.TxinGen()
 await ar.root_message(msg)
 self.assertEqual(msg.height, 0x34)
 ```
+
+
+## XMR classes
+
+```python
+class Hash(x.BlobType): pass;
+class ECKey(x.BlobType): pass;
+class ECPoint(x.BlobType): pass;
+class SecretKey(ECKey): pass;
+class ECPublicKey(ECPoint): pass;
+class KeyImage(ECPoint): pass;
+class KeyDerivation(ECPoint): pass;
+class TxoutToScript(x.MessageType): pass;
+class TxoutToKey(x.MessageType): pass;
+class TxoutToScriptHash(x.MessageType): pass;
+class TxoutTargetV(x.VariantType): pass;
+class TxinGen(x.MessageType): pass;
+class TxinToKey(x.MessageType): pass;
+class TxinToScript(x.MessageType): pass;
+class TxinToScriptHash(x.MessageType): pass;
+class TxInV(x.VariantType): pass;
+class TxOut(x.MessageType): pass;
+class TransactionPrefix(x.MessageType): pass;
+class TransactionPrefixExtraBlob(TransactionPrefix): pass;
+
+#
+# rctTypes.h
+#
+
+class Key64(x.ContainerType): pass;
+class KeyV(x.ContainerType): pass;
+class KeyM(x.ContainerType): pass;
+class KeyVFix(x.ContainerType): pass;
+class KeyMFix(x.ContainerType): pass;
+class CtKey(x.MessageType): pass;
+class CtkeyV(x.ContainerType): pass;
+class CtkeyM(x.ContainerType): pass;
+class MultisigKLRki(x.MessageType): pass;
+class MultisigOut(x.MessageType): pass;
+class EcdhTuple(x.MessageType): pass;
+class BoroSig(x.MessageType): pass;
+class MgSig(x.MessageType): pass;
+class RangeSig(x.MessageType): pass;
+class Bulletproof(x.MessageType): pass;
+class EcdhInfo(x.ContainerType): pass;
+class RctSigBase(x.MessageType): pass;
+class RctSigPrunable(x.MessageType): pass;
+class RctSig(RctSigBase): pass;
+class Signature(x.MessageType): pass;
+class SignatureArray(x.ContainerType): pass;
+class Transaction(TransactionPrefix): pass;
+class BlockHeader(x.MessageType): pass;
+class HashVector(x.ContainerType): pass;
+class Block(BlockHeader): pass;
+class AccountPublicAddress(x.MessageType): pass;
+class SubaddressIndex(x.MessageType): pass;
+class MultisigLR(x.MessageType): pass;
+class MultisigInfo(x.MessageType): pass;
+class MultisigStruct(x.MessageType): pass;
+class TxExtraPadding(x.MessageType): pass;
+class TxExtraPubKey(x.MessageType): pass;
+class TxExtraNonce(x.MessageType): pass;
+class TxExtraMergeMiningTag(x.MessageType): pass;
+class TxExtraAdditionalPubKeys(x.MessageType): pass;
+class TxExtraMysteriousMinergate(x.MessageType): pass;
+class TxExtraField(x.VariantType): pass;
+class TxExtraFields(x.ContainerType): pass;
+class OutputEntry(x.TupleType): pass;
+class TxSourceEntry(x.MessageType): pass;
+class TxDestinationEntry(x.MessageType): pass;
+class TransferDetails(x.MessageType): pass;
+class TxConstructionData(x.MessageType): pass;
+class PendingTransaction(x.MessageType): pass;
+class UnsignedTxSet(x.MessageType): pass;
+class PendingTransactionVector(x.ContainerType): pass;
+```
