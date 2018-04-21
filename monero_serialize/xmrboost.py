@@ -356,10 +356,10 @@ class Archive(x.Archive):
         # Container entry version + container
         if self.writing:
             await dump_uvarint(self.iobj, 0)
-            return await self.dump_container(container, container_type, params)
+            return await self.container_dump(container, container_type, params)
         else:
             await load_uvarint(self.iobj)
-            return await self.load_container(container_type, params=params, container=container)
+            return await self.container_load(container_type, params=params, container=container)
 
     async def container_size(self, container_len=None, container_type=None, params=None):
         """
