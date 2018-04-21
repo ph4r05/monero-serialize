@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import random
-import base64
 import unittest
 import binascii
 import json
@@ -38,7 +37,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         :return:
         """
         data_hex = b'011673657269616c697a6174696f6e3a3a61726368697665000000000134'
-        data_bin = base64.b16decode(data_hex, True)
+        data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
         ar = xmrb.Archive(reader, False)
 
@@ -46,18 +45,30 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         await ar.root_message(msg)
         self.assertEqual(msg.height, 0x34)
 
+        writer = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer, True)
+        await ar2.root()
+        await ar2.message(msg)
+        self.assertEqual(data_bin, bytearray(writer.buffer))
+
     async def test_ctkey_msg(self):
         """
         CtKey
         :return:
         """
         data_hex = b'011673657269616c697a6174696f6e3a3a617263686976650000000000000120000000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000000'
-        data_bin = base64.b16decode(data_hex, True)
+        data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
         ar = xmrb.Archive(reader, False)
 
         msg = xmr.CtKey()
         await ar.root_message(msg)
+
+        writer = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer, True)
+        await ar2.root()
+        await ar2.message(msg)
+        self.assertEqual(data_bin, bytearray(writer.buffer))
 
     async def test_destination_entries(self):
         """
@@ -65,7 +76,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         :return:
         """
         data_hex = b'011673657269616c697a6174696f6e3a3a6172636869766500000001010144000000000120cc000000000000000000000000000000000000000000000000000000000000ee0120aa000000000000000000000000000000000000000000000000000000000000dd01010122012011000000000000000000000000000000000000000000000000000000000000ee012033000000000000000000000000000000000000000000000000000000000000dd00'
-        data_bin = base64.b16decode(data_hex, True)
+        data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
         ar = xmrb.Archive(reader, False)
 
@@ -84,6 +95,13 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg2.is_subaddress, 0)
         self.assertEqual(msg2.addr.m_spend_public_key, bytearray(b'\x11' + (b'\x00' * 30) + b'\xee'))
         self.assertEqual(msg2.addr.m_view_public_key, bytearray(b'\x33' + (b'\x00' * 30) + b'\xdd'))
+
+        writer = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer, True)
+        await ar2.root()
+        await ar2.message(msg)
+        await ar2.message(msg2)
+        self.assertEqual(data_bin, bytearray(writer.buffer))
 
     async def test_tx_prefix(self):
         """
