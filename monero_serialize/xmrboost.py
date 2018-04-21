@@ -348,7 +348,11 @@ class Archive(x.Archive):
         Loads/dumps container
         :return:
         """
-        version = await self.version(container_type, params)
+        # Container versioning is a bit tricky, primitive type containers are not versioned.
+        elem_type = container_elem_type(container_type, params)
+        elem_elementary = TypeWrapper.is_elementary_type(elem_type)
+
+        version = await self.version(container_type, params) if not elem_elementary else None
         if hasattr(container_type, 'boost_serialize'):
             container = container_type() if container is None else container
             return await container.boost_serialize(self, elem=container, elem_type=container_type, params=params, version=version)
@@ -441,10 +445,7 @@ class Archive(x.Archive):
         # if container and c_len != len(container):
         #     raise ValueError('Size mismatch')
 
-        elem_type = params[0] if params else None
-        if elem_type is None:
-            elem_type = container_type.ELEM_TYPE
-
+        elem_type = container_elem_type(container_type, params)
         res = container if container else []
         for i in range(c_len):
             fvalue = await self._load_field(elem_type,
@@ -754,4 +755,17 @@ class Archive(x.Archive):
     async def _load_field(self, elem_type, params=None, elem=None):
         return await self.field(elem=elem, elem_type=elem_type, params=params)
 
+
+def container_elem_type(container_type, params):
+    """
+    Returns container element type
+
+    :param container_type:
+    :param params:
+    :return:
+    """
+    elem_type = params[0] if params else None
+    if elem_type is None:
+        elem_type = container_type.ELEM_TYPE
+    return elem_type
 
