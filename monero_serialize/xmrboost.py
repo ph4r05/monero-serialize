@@ -453,8 +453,6 @@ class Archive(x.Archive):
         raw_container = container_is_raw(container_type, params)
         c_len = await load_uvarint(self.iobj)
         elem_ver = await load_uvarint(self.iobj) if not raw_container else 0
-        if elem_ver != 0:
-            raise ValueError('Unsupported container element version')
 
         # if container and c_len != len(container):
         #     raise ValueError('Size mismatch')
