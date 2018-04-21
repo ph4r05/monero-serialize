@@ -101,6 +101,10 @@ class TypeWrapper(object):
 
     @staticmethod
     def wrap_params(params):
+        if params is None:
+            return None
+        if isinstance(params, (tuple, list)) and len(params) == 0:
+            return None
         if not isinstance(params, (tuple, list)):
             params = (params, )
         return params
