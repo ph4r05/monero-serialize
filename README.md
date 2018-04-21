@@ -14,7 +14,7 @@ This serialization mechanism is used in the blockchain entity serialization.
 
 The binary wire formats use streaming dumping / parsing for better memory efficiency.
 
-For usage please take a look at tests.
+For usage please take a look at [tests](https://github.com/ph4r05/monero-serialize/tree/master/monero_serialize/tests).
 
 ## Example usage:
 
