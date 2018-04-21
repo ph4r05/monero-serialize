@@ -670,7 +670,7 @@ class Archive(x.Archive):
             fname, ftype, params = field[0], field[1], field[2:]
             await self._load_field(ftype, params, x.eref(msg, fname))
 
-    async def msg_fields(self, msg, fields):
+    async def message_fields(self, msg, fields):
         """
         Load/dump individual message fields
         :param msg:

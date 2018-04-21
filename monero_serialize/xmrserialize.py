@@ -778,7 +778,7 @@ class Archive(object):
         else:
             await load_message_field(self.iobj, msg, field, field_archiver=self.load_field)
 
-    async def msg_fields(self, msg, fields):
+    async def message_fields(self, msg, fields):
         """
         Load/dump individual message fields
         :param msg:
