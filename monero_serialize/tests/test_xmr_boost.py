@@ -130,7 +130,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
                          binascii.unhexlify(b'8829dedf62f2c7e6b21556daed786143fb4c1c3ff95bde568b82860229c44b17'))
         self.assertEqual(msg.vout[1].target.key,
                          binascii.unhexlify(b'98d2c70dcef9fc62378ed2d49301a800f90cd8c9423c2b08dfef5f9635267978'))
-        self.assertEqual(msg.extra, [ 2, 9, 1, 47, 52, 19, 57, 144, 50, 174, 234, 1, 115, 225, 189, 191, 247, 206, 185, 246, 32, 137, 241, 205, 17, 99, 170, 72, 226, 34, 108, 233, 7, 125, 90, 190, 17, 206, 149, 202, 216, 243, 78, 13])
+        self.assertEqual(msg.extra, [2, 9, 1, 47, 52, 19, 57, 144, 50, 174, 234, 1, 115, 225, 189, 191, 247, 206, 185, 246, 32, 137, 241, 205, 17, 99, 170, 72, 226, 34, 108, 233, 7, 125, 90, 190, 17, 206, 149, 202, 216, 243, 78, 13])
 
         writer = x.MemoryReaderWriter()
         ar2 = xmrb.Archive(writer, True)
@@ -162,6 +162,12 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(len(msg.rct_signatures.p.MGs[0].ss), 7)
         self.assertEqual(msg.rct_signatures.p.MGs[0].cc,
                          binascii.unhexlify(b'23237696b7cfd0fe1159cfedd00a8acc138ef91f2f249e6289e1f14cb58bce06'))
+
+        writer = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer, True)
+        await ar2.root()
+        await ar2.message(msg)
+        self.assertEqual(data_bin, bytearray(writer.buffer))
 
     async def test_tx_metadata(self):
         """
