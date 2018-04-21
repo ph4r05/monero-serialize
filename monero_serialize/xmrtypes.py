@@ -759,6 +759,20 @@ class TxSourceEntry(x.MessageType):
         ('multisig_kLRki', MultisigKLRki),
     ]
 
+    async def boost_serialize(self, ar, version):
+        if version < 1:
+            raise ValueError('TxSourceEntry v1 supported only')
+        await self._msg_field(ar, 'outputs')
+        await self._msg_field(ar, 'real_output')
+        await self._msg_field(ar, 'real_out_tx_key')
+        await self._msg_field(ar, 'real_output_in_tx_index')
+        await self._msg_field(ar, 'amount')
+        await self._msg_field(ar, 'rct')
+        await self._msg_field(ar, 'mask')
+        await self._msg_field(ar, 'multisig_kLRki')
+        await self._msg_field(ar, 'real_out_additional_tx_keys')
+        return self
+
 
 class TxDestinationEntry(x.MessageType):
     __slots__ = ['amount', 'addr', 'is_subaddress']
@@ -805,6 +819,21 @@ class TxConstructionData(x.MessageType):
         ('subaddr_indices', x.ContainerType, x.UVarintType),  # original: x.UInt32
     ]
 
+    async def boost_serialize(self, ar, version):
+        if version < 2:
+            raise ValueError('TXConstruction v2 supported only')
+        await self._msg_field(ar, 'sources')
+        await self._msg_field(ar, 'change_dts')
+        await self._msg_field(ar, 'splitted_dsts')
+        await self._msg_field(ar, 'extra')
+        await self._msg_field(ar, 'unlock_time')
+        await self._msg_field(ar, 'use_rct')
+        await self._msg_field(ar, 'dests')
+        await self._msg_field(ar, 'subaddr_account')
+        await self._msg_field(ar, 'subaddr_indices')
+        await self._msg_field(ar, 'selected_transfers')
+        return self
+
 
 class PendingTransaction(x.MessageType):
     FIELDS = [
@@ -821,6 +850,23 @@ class PendingTransaction(x.MessageType):
         ('multisig_sigs', x.ContainerType, MultisigStruct),
         ('construction_data', TxConstructionData),
     ]
+
+    async def boost_serialize(self, ar, version):
+        if version < 3:
+            raise ValueError('Pending transaction v3+ supported only')
+        await self._msg_field(ar, idx=0)
+        await self._msg_field(ar, idx=1)
+        await self._msg_field(ar, idx=2)
+        await self._msg_field(ar, idx=3)
+        await self._msg_field(ar, idx=4)
+        await self._msg_field(ar, 'key_images')
+        await self._msg_field(ar, 'tx_key')
+        await self._msg_field(ar, 'dests')
+        await self._msg_field(ar, 'construction_data')
+        await self._msg_field(ar, 'additional_tx_keys')
+        await self._msg_field(ar, 'selected_transfers')
+        await self._msg_field(ar, 'multisig_sigs')
+        return self
 
 
 class UnsignedTxSet(x.MessageType):
