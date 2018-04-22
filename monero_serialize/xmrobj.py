@@ -80,6 +80,8 @@ async def dump_blob(elem, elem_type=None):
     """
     elem_is_blob = isinstance(elem, x.BlobType)
     data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
+    if data is None or len(data) == 0:
+        return b''
     if isinstance(data, (bytes, bytearray, list)):
         return base64.b16encode(data)
     else:
@@ -92,7 +94,9 @@ async def load_blob(elem, elem_type=None):
     :param elem:
     :return:
     """
-    return base64.b16decode(elem)
+    if elem is None:
+        return b''
+    return bytearray(base64.b16decode(elem))
 
 
 async def dump_container(obj, container, container_type, params=None, field_archiver=None):
