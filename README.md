@@ -16,6 +16,10 @@ The binary wire formats use streaming dumping / parsing for better memory effici
 
 For usage please take a look at [tests](https://github.com/ph4r05/monero-serialize/tree/master/monero_serialize/tests).
 
+```
+pip install monero-serialize
+```
+
 ## Example usage:
 
 ```python
