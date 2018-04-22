@@ -116,6 +116,8 @@ async def dump_container(obj, container, container_type, params=None, field_arch
         elem_type = container_type.ELEM_TYPE
 
     obj = [] if obj is None else get_elem(obj)
+    if container is None:
+        return None
     for elem in container:
         fvalue = await field_archiver(None, elem, elem_type, params[1:] if params else None)
         obj.append(fvalue)
@@ -135,6 +137,8 @@ async def load_container(obj, container_type, params=None, container=None, field
     :return:
     """
     field_archiver = field_archiver if field_archiver else load_field
+    if obj is None:
+        return None
 
     c_len = len(obj)
     elem_type = params[0] if params else None
