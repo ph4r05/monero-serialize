@@ -40,7 +40,6 @@ class XmrRpcTest(aiounittest.AsyncTestCase):
         section = {}
         await ar.root()
         await ar.section(section)
-        print(section)
         self.assertIn('m_creation_timestamp', section)
         self.assertIn('m_keys', section)
         self.assertIn('m_account_address', section['m_keys'])
