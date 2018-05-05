@@ -930,4 +930,21 @@ class MultisigTxSet(x.MessageType):
     ]
 
 
+class ChachaIv(x.BlobType):
+    FIX_SIZE = 1
+    SIZE = 8
+
+
+class KeysFileData(x.MessageType):
+    FIELDS = [
+        ('iv', ChachaIv),
+        ('account_data', x.BlobType),
+    ]
+
+
+class CacheFileData(x.MessageType):
+    FIELDS = [
+        ('iv', ChachaIv),
+        ('cache_data', x.BlobType),
+    ]
 
