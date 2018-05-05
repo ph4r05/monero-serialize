@@ -369,7 +369,7 @@ class Archive(x.Archive):
             ent_type = await x.load_uint(self.iobj, 1)
             return await self.entry(ent_type)
 
-    async def container(self, container=None, container_type=None, params=None):
+    async def array(self, container=None, container_type=None, params=None):
         if self.writing:
             if container_type is None and not isinstance(container, ArrayModel):
                 raise ValueError('Unknown container type serialization')
@@ -414,9 +414,9 @@ class Archive(x.Archive):
             elif ent_type == SerializeType.OBJECT:
                 return await self.section(elem)
             elif ent_type == SerializeType.ARRAY:
-                return await self.container(oelem)
+                return await self.array(oelem)
             elif ent_type & SerializeType.ARRAY_FLAG:
-                return await self.container(elem, container_type=ent_type & (~SerializeType.ARRAY_FLAG))
+                return await self.array(elem, container_type=ent_type & (~SerializeType.ARRAY_FLAG))
             else:
                 raise ValueError('Unrecognized type 0x%x' % ent_type)
 
@@ -431,9 +431,9 @@ class Archive(x.Archive):
             elif ent_type == SerializeType.OBJECT:
                 return await self.section()
             elif ent_type == SerializeType.ARRAY:
-                return await self.container()
+                return await self.array()
             elif ent_type & SerializeType.ARRAY_FLAG:
-                return await self.container(container_type=ent_type & (~SerializeType.ARRAY_FLAG))
+                return await self.array(container_type=ent_type & (~SerializeType.ARRAY_FLAG))
             else:
                 raise ValueError('Unrecognized type 0x%x' % ent_type)
 
