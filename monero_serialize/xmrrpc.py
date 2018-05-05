@@ -25,12 +25,19 @@ Mainly related to:
 WARNING: Not finished yet
 '''
 
+import binascii
 
 from . import xmrserialize as x
 from .xmrserialize import eref
 
 
 _UINT_BUFFER = bytearray(1)
+
+
+class PortableStorageConsts:
+    SIGNATUREA = 0x01011101
+    SIGNATUREB = 0x01020101
+    FORMAT_VER = 1
 
 
 class PortableRawSizeMark:
@@ -86,6 +93,34 @@ XmrTypeMap = {
     x.ContainerType: SerializeType.ARRAY,
     x.MessageType: SerializeType.OBJECT,
 }
+
+
+class IModel(object):
+    def __init__(self, val, ser_type=None):
+        self.val = val
+        self.type = ser_type
+
+    def __repr__(self):
+        return '%r' % self.val
+
+    def __eq__(self, other):
+        if isinstance(other, IModel):
+            return self.type == other.type and self.val == other.val
+        else:
+            return self.val == other
+
+    def to_json(self):
+        return self.val
+
+
+class ArrayModel(IModel):
+    def __str__(self):
+        return 'Arr[%s; %s]' % (self.type, self.val)
+
+
+class IntegerModel(IModel):
+    def __str__(self):
+        return 'Int[%s; %s]' % (self.type, self.val)
 
 
 def int_mark_to_size(int_type):
@@ -146,15 +181,15 @@ async def dump_varint(writer, val):
     :return:
     """
     if val <= 63:
-        return dump_varint_t(writer, PortableRawSizeMark.BYTE, val)
+        return await dump_varint_t(writer, PortableRawSizeMark.BYTE, val)
     elif val <= 16383:
-        return dump_varint_t(writer, PortableRawSizeMark.WORD, val)
+        return await dump_varint_t(writer, PortableRawSizeMark.WORD, val)
     elif val <= 1073741823:
-        return dump_varint_t(writer, PortableRawSizeMark.DWORD, val)
+        return await dump_varint_t(writer, PortableRawSizeMark.DWORD, val)
     else:
         if val > 4611686018427387903:
             raise ValueError('Int too big')
-        return dump_varint_t(writer, PortableRawSizeMark.INT64, val)
+        return await dump_varint_t(writer, PortableRawSizeMark.INT64, val)
 
 
 async def load_varint(reader):
@@ -187,7 +222,7 @@ async def dump_string(writer, val):
     :return:
     """
     await dump_varint(writer, len(val))
-    await writer.awrite(bytes(val, 'utf8'))
+    await writer.awrite(val)
 
 
 async def load_string(reader):
@@ -200,8 +235,7 @@ async def load_string(reader):
     ivalue = await load_varint(reader)
     fvalue = bytearray(ivalue)
     await reader.areadinto(fvalue)
-    fvalue = str(fvalue, 'utf8')
-    return fvalue
+    return bytes(fvalue)
 
 
 async def dump_blob(writer, elem, elem_type, params=None):
@@ -247,201 +281,185 @@ async def load_blob(reader, elem_type, params=None, elem=None):
     return elem
 
 
-async def dump_container(writer, container, container_type, params=None, field_archiver=None):
-    """
-    Dumps container of elements to the writer.
-
-    :param writer:
-    :param container:
-    :param container_type:
-    :param params:
-    :param field_archiver:
-    :return:
-    """
-    field_archiver = field_archiver if field_archiver else dump_field
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
-
-    type_code = xmr_type_to_type(elem_type) | SerializeType.ARRAY_FLAG
-    buff = bytearray(1)
-    buff[0] = type_code
-    await writer.awrite(buff)
-    await dump_varint(writer, len(container))
-
-    for elem in container:
-        await field_archiver(writer, elem, elem_type, params[1:] if params else None)
-
-
 #
-# Code needs some check below this point
+# Archive
 #
 
 
-async def load_container(reader, container_type, params=None, container=None, field_archiver=None):
-    """
-    Loads container of elements from the reader. Supports the container ref.
-    Returns loaded container.
-    TODO: implement
+class Archive(x.Archive):
+    def __init__(self, iobj, writing=True, modeled=True, **kwargs):
+        super().__init__(iobj, writing, **kwargs)
+        self.modeled = modeled
 
-    :param reader:
-    :param container_type:
-    :param params:
-    :param container:
-    :param field_archiver:
-    :return:
-    """
-    field_archiver = field_archiver if field_archiver else load_field
+    async def root(self):
+        """
+        Root level init
+        :return:
+        """
+        if self.writing:
+            await x.dump_uint(self.iobj, PortableStorageConsts.SIGNATUREA, 4)
+            await x.dump_uint(self.iobj, PortableStorageConsts.SIGNATUREB, 4)
+            await x.dump_uint(self.iobj, PortableStorageConsts.FORMAT_VER, 1)
 
-    c_len = container_type.SIZE if container_type.FIX_SIZE else await load_varint(reader)
-    if container and c_len != len(container):
-        raise ValueError('Size mismatch')
+        else:
+            sig_a = await x.load_uint(self.iobj, 4)
+            sig_b = await x.load_uint(self.iobj, 4)
+            ver = await x.load_uint(self.iobj, 1)
 
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
+            if sig_a != PortableStorageConsts.SIGNATUREA:
+                raise ValueError('Signature A error')
+            if sig_b != PortableStorageConsts.SIGNATUREB:
+                raise ValueError('Signature A error')
+            if ver != PortableStorageConsts.FORMAT_VER:
+                raise ValueError('Unsupported version')
 
-    res = container if container else []
-    for i in range(c_len):
-        fvalue = await field_archiver(reader, elem_type,
-                                      params[1:] if params else None,
-                                      eref(res, i) if container else None)
-        if not container:
-            res.append(fvalue)
-    return res
+    async def section(self, sec=None):
+        """
+        Section / dict serialization
+        :return:
+        """
+        if self.writing:
+            await dump_varint(self.iobj, len(sec))
+            for key in sec:
+                await self.section_name(key)
+                await self.storage_entry(sec[key])
 
+        else:
+            sec = {} if sec is None else sec
 
-async def dump_message_field(writer, msg, field, field_archiver=None):
-    """
-    Dumps a message field to the writer. Field is defined by the message field specification.
-    TODO: implement
+            count = await load_varint(self.iobj)
+            for idx in range(count):
+                sec_name = await self.section_name()
+                val = await self.storage_entry()
+                sec[sec_name] = val
 
-    :param writer:
-    :param msg:
-    :param field:
-    :param field_archiver:
-    :return:
-    """
-    fname, ftype, params = field[0], field[1], field[2:]
-    fvalue = getattr(msg, fname, None)
-    field_archiver = field_archiver if field_archiver else dump_field
-    await field_archiver(writer, fvalue, ftype, params)
+            return sec
 
+    async def section_name(self, sec_name=None):
+        """
+        Section name
+        :param sec_name:
+        :return:
+        """
+        if self.writing:
+            fvalue = sec_name.encode('ascii')
+            await x.dump_uint(self.iobj, len(fvalue), 1)
+            await self.iobj.awrite(bytearray(fvalue))
 
-async def load_message_field(reader, msg, field, field_archiver=None):
-    """
-    Loads message field from the reader. Field is defined by the message field specification.
-    Returns loaded value, supports field reference.
-    TODO: implement
+        else:
+            ivalue = await x.load_uint(self.iobj, 1)
+            fvalue = bytearray(ivalue)
+            await self.iobj.areadinto(fvalue)
+            return bytes(fvalue).decode('ascii')
 
-    :param reader:
-    :param msg:
-    :param field:
-    :param field_archiver:
-    :return:
-    """
-    fname, ftype, params = field[0], field[1], field[2:]
-    field_archiver = field_archiver if field_archiver else load_field
-    await field_archiver(reader, ftype, params, eref(msg, fname))
+    async def storage_entry(self, entry=None, ent_type=None):
+        if self.writing:
+            oentry = entry
+            if ent_type is None:
+                ent_type, entry = self.det_entry_model(entry)
 
+            if ent_type & SerializeType.ARRAY_FLAG:
+                return await self.entry(ent_type=ent_type, elem=oentry)
 
-async def dump_message(writer, msg, field_archiver=None):
-    """
-    Dumps message to the writer.
-    TODO: implement
+            else:
+                await x.dump_uint(self.iobj, ent_type, 1)
+                return await self.entry(ent_type=ent_type, elem=entry)
 
-    :param writer:
-    :param msg:
-    :param field_archiver:
-    :return:
-    """
-    mtype = msg.__class__
-    fields = mtype.FIELDS
+        else:
+            ent_type = await x.load_uint(self.iobj, 1)
+            return await self.entry(ent_type)
 
-    for field in fields:
-        await dump_message_field(writer, msg=msg, field=field, field_archiver=field_archiver)
+    async def container(self, container=None, container_type=None, params=None):
+        if self.writing:
+            if container_type is None and not isinstance(container, ArrayModel):
+                raise ValueError('Unknown container type serialization')
+            if container_type is None:
+                container_type = container.type
+                container = container.val
 
+            entry_type = container_type & (~ SerializeType.ARRAY_FLAG)
+            container_type |= SerializeType.ARRAY_FLAG
 
-async def load_message(reader, msg_type, msg=None, field_archiver=None):
-    """
-    Loads message if the given type from the reader.
-    Supports reading directly to existing message.
-    TODO: implement
+            await x.dump_uint(self.iobj, container_type, 1)
+            await dump_varint(self.iobj, len(container))
+            for i in container:
+                await self.entry(entry_type, elem=i)
 
-    :param reader:
-    :param msg_type:
-    :param msg:
-    :param field_archiver:
-    :return:
-    """
-    msg = msg_type() if msg is None else msg
-    fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
-    for field in fields:
-        await load_message_field(reader, msg, field, field_archiver=field_archiver)
+        else:
+            if container_type is None:
+                container_type = await x.load_uint(self.iobj, 1)
 
-    return msg
+            container_type &= ~SerializeType.ARRAY_FLAG
 
+            c_len = await load_varint(self.iobj)
+            res = container if container else []
+            for i in range(c_len):
+                fval = await self.entry(container_type, x.eref(res, i) if container else None)
+                if not container:
+                    res.append(fval)
 
-async def dump_field(writer, elem, elem_type, params=None):
-    """
-    TODO: implement
+            return res if not self.modeled else ArrayModel(res, container_type)
 
-    :param writer:
-    :param elem:
-    :param elem_type:
-    :param params:
-    :return:
-    """
-    if issubclass(elem_type, x.UVarintType) or issubclass(elem_type, x.IntType) \
-            or (elem_type is None and isinstance(elem, int)):
-        await dump_varint(writer, elem)
+    async def entry(self, ent_type, elem=None):
+        if self.writing:
+            oelem = elem
+            elem = elem if not isinstance(elem, IModel) else elem.val
 
-    elif issubclass(elem_type, x.BlobType):
-        await dump_blob(writer, elem, elem_type, params)
+            if ent_type in SerializeTypeSize:
+                return await x.dump_uint(self.iobj, elem, type_to_size(ent_type))
+            elif ent_type == SerializeType.DUOBLE:
+                raise ValueError('Not supported')
+            elif ent_type == SerializeType.STRING:
+                return await self.unicode_type(elem)
+            elif ent_type == SerializeType.OBJECT:
+                return await self.section(elem)
+            elif ent_type == SerializeType.ARRAY:
+                return await self.container(oelem)
+            elif ent_type & SerializeType.ARRAY_FLAG:
+                return await self.container(elem, container_type=ent_type & (~SerializeType.ARRAY_FLAG))
+            else:
+                raise ValueError('Unrecognized type 0x%x' % ent_type)
 
-    elif issubclass(elem_type, x.UnicodeType):
-        await dump_string(writer, elem)
+        else:
+            if ent_type in SerializeTypeSize:
+                fval = await x.load_uint(self.iobj, type_to_size(ent_type))
+                return fval if not self.modeled else IntegerModel(fval, ent_type)
+            elif ent_type == SerializeType.DUOBLE:
+                raise ValueError('Not supported')
+            elif ent_type == SerializeType.STRING:
+                return await self.unicode_type()
+            elif ent_type == SerializeType.OBJECT:
+                return await self.section()
+            elif ent_type == SerializeType.ARRAY:
+                return await self.container()
+            elif ent_type & SerializeType.ARRAY_FLAG:
+                return await self.container(container_type=ent_type & (~SerializeType.ARRAY_FLAG))
+            else:
+                raise ValueError('Unrecognized type 0x%x' % ent_type)
 
-    elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
-        await dump_container(writer, elem, elem_type, params)
+    async def unicode_type(self, elem=None):
+        if self.writing:
+            return await dump_string(self.iobj, elem)
 
-    elif issubclass(elem_type, x.MessageType):
-        await dump_message(writer, elem)
+        else:
+            return await load_string(self.iobj)
 
-    else:
-        raise TypeError
-
-
-async def load_field(reader, elem_type, params=None, elem=None):
-    """
-    Loads a field from the reader, based on the field type specification. Demultiplexer.
-    TODO: implement
-
-    :param reader:
-    :param elem_type:
-    :param params:
-    :param elem:
-    :return:
-    """
-    if issubclass(elem_type, x.UVarintType) or issubclass(elem_type, x.IntType) \
-            or (elem_type is None and isinstance(elem, int)):
-        fvalue = await load_varint(reader)
-        return x.set_elem(elem, fvalue)
-
-    elif issubclass(elem_type, x.UnicodeType):
-        fvalue = await load_string(reader)
-        return x.set_elem(elem, fvalue)
-
-    elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
-        fvalue = await load_container(reader, elem_type, params=params, container=x.get_elem(elem))
-        return x.set_elem(elem, fvalue)
-
-    elif issubclass(elem_type, x.MessageType):
-        fvalue = await load_message(reader, msg_type=elem_type, msg=x.get_elem(elem))
-        return x.set_elem(elem, fvalue)
-
-    else:
-        raise TypeError
-
-
+    @staticmethod
+    def det_entry_model(entry):
+        if isinstance(entry, IntegerModel):
+            return entry.type, entry.val
+        elif isinstance(entry, ArrayModel):
+            return entry.type | SerializeType.ARRAY_FLAG, entry.val
+        elif isinstance(entry, IModel):
+            return entry.type, entry.val
+        elif isinstance(entry, bytes):
+            return SerializeType.STRING, entry
+        elif isinstance(entry, bytearray):
+            return SerializeType.STRING, bytes(entry)
+        elif isinstance(entry, (dict, x.MessageType)):
+            return SerializeType.OBJECT, entry
+        elif isinstance(entry, (list, tuple)):
+            return SerializeType.OBJECT | SerializeType.ARRAY_FLAG, entry  # fallback to obj
+        else:
+            raise ValueError('Unknown: %r' % entry)
 
