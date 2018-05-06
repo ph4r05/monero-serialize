@@ -555,7 +555,7 @@ class Modeler(object):
 
             fval = Modeler.to_bytes(data)
             if self.hexlify:
-                return binascii.hexlify(fval).decode('utf8')
+                return binascii.hexlify(fval).decode('ascii')
             else:
                 return fval
 
@@ -596,7 +596,7 @@ class Modeler(object):
         obj = [] if not x.has_elem(obj) else x.get_elem(obj)
 
         if container is None:
-            return None
+            return NoSetSentinel() if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
 
         for elem in container:
             fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
@@ -616,11 +616,11 @@ class Modeler(object):
         :param container:
         :return:
         """
-        if obj is None:
-            return None
-
         if isinstance(obj, IModel):
             obj = obj.val
+
+        if obj is None:
+            return NoSetSentinel()
 
         c_len = len(obj)
         elem_type = params[0] if params else None
