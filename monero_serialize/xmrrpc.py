@@ -29,6 +29,7 @@ import binascii
 import collections
 
 from . import xmrserialize as x
+from . import helpers
 from .xmrserialize import eref
 
 
@@ -491,6 +492,7 @@ class Modeler(object):
         self.hexlify = hexlify
         self.modelize = modelize
         self.strict_load = strict_load
+        self.tracker = helpers.Tracker()
 
     @staticmethod
     def to_bytes(elem):
@@ -598,8 +600,14 @@ class Modeler(object):
         if container is None:
             return NoSetSentinel() if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
 
-        for elem in container:
-            fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
+        for idx, elem in enumerate(container):
+            try:
+                self.tracker.push_index(idx)
+                fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
             if not isinstance(fvalue, NoSetSentinel):
                 obj.append(fvalue)
 
@@ -629,11 +637,18 @@ class Modeler(object):
 
         res = container if container else []
         for i in range(c_len):
-            fvalue = await self._load_field(obj[i], elem_type,
-                                            params[1:] if params else None,
-                                            x.eref(res, i) if container else None)
+            try:
+                self.tracker.push_index(i)
+                fvalue = await self._load_field(obj[i], elem_type,
+                                                params[1:] if params else None,
+                                                x.eref(res, i) if container else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
             if not container and not isinstance(fvalue, NoSetSentinel):
                 res.append(fvalue)
+
         return res
 
     async def tuple(self, obj, elem=None, elem_type=None, params=None):
@@ -669,8 +684,15 @@ class Modeler(object):
 
         obj = [] if obj is None else x.get_elem(obj)
         for idx, elem in enumerate(elem):
-            fvalue = await self._dump_field(None, elem, elem_fields[idx], params[1:] if params else None)
-            obj.append(fvalue)
+            try:
+                self.tracker.push_index(idx)
+                fvalue = await self._dump_field(None, elem, elem_fields[idx], params[1:] if params else None)
+                obj.append(fvalue)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
         return obj
 
     async def load_tuple(self, obj, elem_type, params=None, elem=None):
@@ -696,11 +718,19 @@ class Modeler(object):
 
         res = elem if elem else []
         for i in range(len(elem_fields)):
-            fvalue = await self._load_field(obj[i],
-                                            params[1:] if params else None,
-                                            x.eref(res, i) if elem else None)
-            if not elem:
-                res.append(fvalue)
+            try:
+                self.tracker.push_index(i)
+                fvalue = await self._load_field(obj[i],
+                                                params[1:] if params else None,
+                                                x.eref(res, i) if elem else None)
+                self.tracker.pop()
+
+                if not elem:
+                    res.append(fvalue)
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
         return res
 
     async def variant(self, obj, elem=None, elem_type=None, params=None):
@@ -736,16 +766,31 @@ class Modeler(object):
         :param params:
         :return:
         """
+        fvalue = None
         if isinstance(elem, x.VariantType) or elem_type.WRAPS_VALUE:
-            return {
-                elem.variant_elem: await self._dump_field(obj, getattr(elem, elem.variant_elem), elem.variant_elem_type)
-            }
+            try:
+                self.tracker.push_variant(elem.variant_elem_type)
+                fvalue = {
+                    elem.variant_elem: await self._dump_field(obj, getattr(elem, elem.variant_elem), elem.variant_elem_type)
+                }
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
 
         else:
-            fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
-            return {
-                fdef[0]: await self._dump_field(obj, elem, fdef[1])
-            }
+            try:
+                fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+                self.tracker.push_variant(fdef[1])
+                fvalue = {
+                    fdef[0]: await self._dump_field(obj, elem, fdef[1])
+                }
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
+        return fvalue
 
     async def load_variant(self, obj, elem_type, params=None, elem=None, wrapped=None):
         """
@@ -769,7 +814,14 @@ class Modeler(object):
             if field[0] != fname:
                 continue
 
-            fvalue = await self._load_field(obj[fname], field[1], field[2:], elem if not is_wrapped else None)
+            try:
+                self.tracker.push_variant(field[1])
+                fvalue = await self._load_field(obj[fname], field[1], field[2:], elem if not is_wrapped else None)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
             if is_wrapped:
                 elem.set_variant(field[0], fvalue)
 
@@ -794,7 +846,13 @@ class Modeler(object):
         obj = collections.OrderedDict() if not x.has_elem(obj) else x.get_elem(obj)
 
         for field in fields:
-            await self.message_field(obj, msg=msg, field=field)
+            try:
+                self.tracker.push_field(field[0])
+                await self.message_field(obj, msg=msg, field=field)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
 
         return obj if self.writing else msg
 
@@ -824,7 +882,14 @@ class Modeler(object):
         :return:
         """
         for field in fields:
-            await self.message_field(obj, msg, field)
+            try:
+                self.tracker.push_field(field[0])
+                await self.message_field(obj, msg, field)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
         return msg
 
     async def field(self, obj=None, elem=None, elem_type=None, params=None):

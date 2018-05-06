@@ -9,7 +9,6 @@ import pkg_resources
 import asyncio
 import aiounittest
 
-from .test_data import XmrTestData
 from .. import xmrserialize as x
 from .. import xmrtypes as xmr
 from .. import xmrobj as xmro
