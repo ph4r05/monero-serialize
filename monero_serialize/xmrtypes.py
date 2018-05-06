@@ -958,4 +958,11 @@ class AccountKeys(x.MessageType):
     ]
 
 
+class WalletKeyData(x.MessageType):
+    FIELDS = [
+        ('m_creation_timestamp', x.UInt64),
+        ('m_keys', AccountKeys),
+    ]
+
+
 
