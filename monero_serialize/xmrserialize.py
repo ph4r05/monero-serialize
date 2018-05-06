@@ -475,6 +475,20 @@ def is_elem_ref(elem_ref):
            and (elem_ref[0] == ElemRefObj or elem_ref[0] == ElemRefArr)
 
 
+def has_elem(elem_ref):
+    """
+    Has element?
+    :param elem_ref:
+    :return:
+    """
+    if not is_elem_ref(elem_ref):
+        return False
+    elif elem_ref[0] == ElemRefObj:
+        return hasattr(elem_ref[1], elem_ref[2])
+    elif elem_ref[0] == ElemRefArr:
+        return elem_ref[2] in elem_ref[1]
+
+
 def get_elem(elem_ref, default=None):
     """
     Gets the element referenced by elem_ref or returns the elem_ref directly if its not a reference.

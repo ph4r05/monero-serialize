@@ -60,6 +60,20 @@ class XmrRpcTest(aiounittest.AsyncTestCase):
         self.assertEqual(section['m_creation_timestamp'], section2['m_creation_timestamp'])
         self.assertDictEqual(section, section2)
 
+    async def test_modeler(self):
+        msg = xmr.AccountPublicAddress()
+        msg.m_spend_public_key = '\xff'*32
+        msg.m_view_public_key = '\xee'*32
+        mdl = xmrrpc.Modeler(True)
+
+        m2 = xmr.AccountKeys()
+        m2.m_account_address = msg
+        m2.m_spend_secret_key = '\x12'*32
+        m2.m_view_secret_key = '\x15'*32
+        m2.m_multisig_keys = ['\x19'*32, '\x22'*32]
+
+        obj = await mdl.message(obj=None, msg=m2)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

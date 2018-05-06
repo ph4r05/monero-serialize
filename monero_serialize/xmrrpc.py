@@ -26,6 +26,7 @@ WARNING: Not finished yet
 '''
 
 import binascii
+import collections
 
 from . import xmrserialize as x
 from .xmrserialize import eref
@@ -92,6 +93,7 @@ XmrTypeMap = {
     x.UnicodeType: SerializeType.STRING,
     x.ContainerType: SerializeType.ARRAY,
     x.MessageType: SerializeType.OBJECT,
+    x.BlobType: SerializeType.STRING,
 }
 
 
@@ -123,6 +125,11 @@ class IntegerModel(IModel):
         return 'Int[%s; %s]' % (self.type, self.val)
 
 
+class BlobModel(IModel):
+    def __str__(self):
+        return 'Blob[%s; %s]' % (self.type, self.val)
+
+
 def int_mark_to_size(int_type):
     if int_type == PortableRawSizeMark.BYTE:
         return 1
@@ -143,12 +150,16 @@ def type_to_size(obj_type):
 def xmr_type_to_type(elem_type):
     if isinstance(elem_type, int):
         return elem_type
+    elif elem_type == object or elem_type == type:
+        raise ValueError('Canot convert Xmr type: %s' % elem_type)
     elif elem_type in XmrTypeMap:
         return XmrTypeMap[elem_type]
-    elif isinstance(elem_type, x.XmrType):
+    elif isinstance(elem_type, x.XmrType) and elem_type.__class__ in XmrTypeMap:
         return XmrTypeMap[elem_type.__class__]
+    elif len(elem_type.__bases__) > 0:
+        return xmr_type_to_type(elem_type.__bases__[0])
     else:
-        raise ValueError('Cannot convert Xmr type')
+        raise ValueError('Cannot convert Xmr type %s' % elem_type)
 
 
 async def dump_varint_t(writer, type_or, pv):
@@ -462,4 +473,414 @@ class Archive(x.Archive):
             return SerializeType.OBJECT | SerializeType.ARRAY_FLAG, entry  # fallback to obj
         else:
             raise ValueError('Unknown: %r' % entry)
+
+
+class Modeler(object):
+    """
+    Converting message classes to models and vice versa.
+    Writing  = transforming message to model.
+    !Writing = transforming model to message.
+    """
+
+    def __init__(self, writing=True, hexlify=False, modelize=True, strict_load=False, **kwargs):
+        self.writing = writing
+        self.hexlify = hexlify
+        self.modelize = modelize
+        self.strict_load = strict_load
+
+    @staticmethod
+    def to_bytes(elem):
+        if isinstance(elem, bytearray):
+            return bytes(elem)
+        if isinstance(elem, str):
+            return elem.encode('utf8')
+        if isinstance(elem, list):
+            return bytes(elem)
+        return elem
+
+    async def uvarint(self, elem):
+        """
+        Uvarint untouched
+        :param elem:
+        :return:
+        """
+        return elem
+
+    async def uint(self, elem, elem_type, params=None):
+        """
+        Integer types
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        if self.writing:
+            return IntegerModel(elem, elem_type.WIDTH) if self.modelize else elem
+        else:
+            return elem.val if isinstance(elem, IModel) else elem
+
+    async def unicode_type(self, elem):
+        """
+        Unicode type
+        :param elem:
+        :return:
+        """
+        if self.writing:
+            return Modeler.to_bytes(elem)
+
+        else:
+            return elem
+
+    async def blob(self, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps blob
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+        if hasattr(elem_type, 'kv_serialize'):
+            elem = elem_type() if elem is None else elem
+            return await elem.kv_serialize(self, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            elem_is_blob = isinstance(elem, x.BlobType)
+            data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
+            if data is None or len(data) == 0:
+                return b''
+
+            fval = Modeler.to_bytes(data)
+            if self.hexlify:
+                return binascii.hexlify(fval).decode('utf8')
+            else:
+                return fval
+
+        else:
+            if elem is None:
+                return b''
+            if self.hexlify:
+                return bytes(binascii.unhexlify(elem))
+            else:
+                return bytes(elem)
+
+    async def container(self, obj, container=None, container_type=None, params=None):
+        """
+        Loads/dumps container
+        :return:
+        """
+
+        elem_type = x.container_elem_type(container_type, params)
+        raw_container = container_is_raw(container_type, params)
+
+        if hasattr(container_type, 'kv_serialize'):
+            container = container_type() if container is None else container
+            return await container.kv_serialize(self, elem=container, elem_type=container_type, params=params)
+
+        # Container entry version + container
+        if self.writing:
+            return await self.container_dump(obj, container, container_type, params)
+        else:
+            return await self.container_load(obj, container_type, params=params, container=container)
+
+    async def container_dump(self, obj, container, container_type, params=None):
+        """
+        Dumps container of elements to the writer.
+
+        :param obj:
+        :param container:
+        :param container_type:
+        :param params:
+        :return:
+        """
+        elem_type = x.container_elem_type(container_type, params)
+        obj = [] if not x.has_elem(obj) else x.get_elem(obj)
+
+        if container is None:
+            return None
+
+        for elem in container:
+            fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
+            obj.append(fvalue)
+
+        return obj if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
+
+    async def container_load(self, obj, container_type, params=None, container=None):
+        """
+        Loads container of elements from the reader. Supports the container ref.
+        Returns loaded container.
+
+        :param obj:
+        :param container_type:
+        :param params:
+        :param container:
+        :return:
+        """
+        if obj is None:
+            return None
+
+        if isinstance(obj, IModel):
+            obj = obj.val
+
+        c_len = len(obj)
+        elem_type = params[0] if params else None
+        if elem_type is None:
+            elem_type = container_type.ELEM_TYPE
+
+        res = container if container else []
+        for i in range(c_len):
+            fvalue = await self._load_field(obj[i], elem_type,
+                                            params[1:] if params else None,
+                                            x.eref(res, i) if container else None)
+            if not container:
+                res.append(fvalue)
+        return res
+
+    async def tuple(self, obj, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps tuple
+        :return:
+        """
+        if hasattr(elem_type, 'kv_serialize'):
+            container = elem_type() if elem is None else elem
+            return await container.kv_serialize(self, elem=elem, elem_type=elem_type, params=params)
+
+        # TODO: if modeled return as 0=>, 1=>, ...
+        if self.writing:
+            return await self.dump_tuple(obj, elem, elem_type, params)
+        else:
+            return await self.load_tuple(obj, elem_type, params=params, elem=elem)
+
+    async def dump_tuple(self, obj, elem, elem_type, params=None):
+        """
+        Dumps tuple of elements to the writer.
+
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        if len(elem) != len(elem_type.FIELDS):
+            raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+
+        elem_fields = params[0] if params else None
+        if elem_fields is None:
+            elem_fields = elem_type.FIELDS
+
+        obj = [] if obj is None else x.get_elem(obj)
+        for idx, elem in enumerate(elem):
+            fvalue = await self._dump_field(None, elem, elem_fields[idx], params[1:] if params else None)
+            obj.append(fvalue)
+        return obj
+
+    async def load_tuple(self, obj, elem_type, params=None, elem=None):
+        """
+        Loads tuple of elements from the reader. Supports the tuple ref.
+        Returns loaded tuple.
+
+        :param elem_type:
+        :param params:
+        :param elem:
+        :return:
+        """
+        if obj is None:
+            return None
+
+        elem_fields = params[0] if params else None
+        if elem_fields is None:
+            elem_fields = elem_type.FIELDS
+
+        c_len = len(obj)
+        if len(elem_fields) != c_len:
+            raise ValueError('Size mismatch')
+
+        res = elem if elem else []
+        for i in range(len(elem_fields)):
+            fvalue = await self._load_field(obj[i],
+                                            params[1:] if params else None,
+                                            x.eref(res, i) if elem else None)
+            if not elem:
+                res.append(fvalue)
+        return res
+
+    async def variant(self, obj, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps variant type
+        :param obj:
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+
+        if hasattr(elem_type, 'kv_serialize'):
+            elem = elem_type() if elem is None else elem
+            return await elem.kv_serialize(self, obj, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            return await self.dump_variant(obj=obj, elem=elem,
+                                           elem_type=elem_type if elem_type else elem.__class__, params=params)
+        else:
+            return await self.load_variant(obj=obj, elem_type=elem_type if elem_type else elem.__class__,
+                                           params=params, elem=elem)
+
+    async def dump_variant(self, obj, elem, elem_type=None, params=None):
+        """
+        Dumps variant type to the writer.
+        Supports both wrapped and raw variant.
+
+        :param obj:
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        if isinstance(elem, x.VariantType) or elem_type.WRAPS_VALUE:
+            return {
+                elem.variant_elem: await self._dump_field(obj, getattr(elem, elem.variant_elem), elem.variant_elem_type)
+            }
+
+        else:
+            fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+            return {
+                fdef[0]: await self._dump_field(obj, elem, fdef[1])
+            }
+
+    async def load_variant(self, obj, elem_type, params=None, elem=None, wrapped=None):
+        """
+        Loads variant type from the reader.
+        Supports both wrapped and raw variant.
+
+        :param obj:
+        :param elem_type:
+        :param params:
+        :param elem:
+        :param wrapped:
+        :return:
+        """
+        is_wrapped = elem_type.WRAPS_VALUE if wrapped is None else wrapped
+
+        if is_wrapped:
+            elem = elem_type() if elem is None else elem
+
+        fname = list(obj.keys())[0]
+        for field in elem_type.FIELDS:
+            if field[0] != fname:
+                continue
+
+            fvalue = await self._load_field(obj[fname], field[1], field[2:], elem if not is_wrapped else None)
+            if is_wrapped:
+                elem.set_variant(field[0], fvalue)
+
+            return elem if is_wrapped else fvalue
+        raise ValueError('Unknown tag: %s' % fname)
+
+    async def message(self, obj, msg, msg_type=None):
+        """
+        Loads/dumps message
+        :param obj:
+        :param msg:
+        :param msg_type:
+        :param use_version:
+        :return:
+        """
+        elem_type = msg_type if msg_type is not None else msg.__class__
+        if hasattr(elem_type, 'kv_serialize'):
+            msg = elem_type() if msg is None else msg
+            return await msg.kv_serialize(self)
+
+        fields = elem_type.FIELDS
+        obj = collections.OrderedDict() if not x.has_elem(obj) else x.get_elem(obj)
+
+        for field in fields:
+            await self.message_field(obj, msg=msg, field=field)
+
+        return obj if self.writing else msg
+
+    async def message_field(self, obj, msg, field, fvalue=None):
+        """
+        Dumps/Loads message field
+        :param msg:
+        :param field:
+        :param fvalue: explicit value for dump
+        :return:
+        """
+        fname, ftype, params = field[0], field[1], field[2:]
+
+        if self.writing:
+            fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
+            await self._dump_field(eref(obj, fname, True), fvalue, ftype, params)
+        else:
+            oval = obj[fname] if self.strict_load else (obj[fname] if fname in obj else None)
+            await self._load_field(oval, ftype, params, x.eref(msg, fname))
+
+    async def message_fields(self, obj, msg, fields):
+        """
+        Load/dump individual message fields
+        :param msg:
+        :param fields:
+        :param field_archiver:
+        :return:
+        """
+        for field in fields:
+            await self.message_field(obj, msg, field)
+        return msg
+
+    async def field(self, obj=None, elem=None, elem_type=None, params=None):
+        """
+        Archive field
+        :param obj:
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+        fvalue = None
+
+        src = elem if self.writing else obj
+        dst = obj if self.writing else elem
+
+        if issubclass(elem_type, x.UVarintType):
+            fvalue = await self.uvarint(x.get_elem(src))
+
+        elif issubclass(elem_type, x.IntType):
+            fvalue = await self.uint(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.BlobType):
+            fvalue = await self.blob(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.UnicodeType):
+            fvalue = await self.unicode_type(x.get_elem(src))
+
+        elif issubclass(elem_type, x.VariantType):
+            fvalue = await self.variant(dst, elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
+            fvalue = await self.container(dst, container=x.get_elem(src), container_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
+            fvalue = await self.tuple(dst, elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.MessageType):
+            fvalue = await self.message(dst, x.get_elem(src), msg_type=elem_type)
+
+        else:
+            raise TypeError
+
+        return x.set_elem(dst, fvalue)
+
+    async def _dump_field(self, obj, elem, elem_type, params=None):
+        return await self.field(obj, elem=elem, elem_type=elem_type, params=params)
+
+    async def _load_field(self, obj, elem_type, params=None, elem=None):
+        return await self.field(obj, elem=elem, elem_type=elem_type, params=params)
+
+
+def container_is_raw(container_type, params):
+    """
+    Returns true if container is statically allocated array
+    :param container_type:
+    :param params:
+    :return:
+    """
+    return container_type.KV_RAW_ARRAY if hasattr(container_type, 'KV_RAW_ARRAY') else False
 
