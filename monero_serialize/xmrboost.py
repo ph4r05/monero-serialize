@@ -7,6 +7,7 @@ Monero Boost codec, portable binary archive
 import binascii
 
 from . import xmrserialize as x
+from . import helpers
 
 
 _UVARINT_BUFFER = bytearray(1)
@@ -164,10 +165,14 @@ class VersionDatabase(object):
 
 
 class Archive(x.Archive):
+    """
+    Boost symmetric serialization archive
+    """
 
     def __init__(self, iobj, writing=True, **kwargs):
         super().__init__(iobj, writing, **kwargs)
         self.version_db = VersionDatabase()
+        self.tracker = helpers.Tracker()
 
     def type_in_db(self, tp, params):
         """
@@ -430,8 +435,13 @@ class Archive(x.Archive):
         await self.container_size(len(container), container_type, params)
 
         elem_type = x.container_elem_type(container_type, params)
-        for elem in container:
-            await self._dump_field(elem, elem_type, params[1:] if params else None)
+        for idx, elem in enumerate(container):
+            try:
+                self.tracker.push_index(idx)
+                await self._dump_field(elem, elem_type, params[1:] if params else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
 
     async def container_load(self, container_type, params=None, container=None):
         """
@@ -454,9 +464,15 @@ class Archive(x.Archive):
         elem_type = x.container_elem_type(container_type, params)
         res = container if container else []
         for i in range(c_len):
-            fvalue = await self._load_field(elem_type,
-                                            params[1:] if params else None,
-                                            x.eref(res, i) if container else None)
+            try:
+                self.tracker.push_index(i)
+                fvalue = await self._load_field(elem_type,
+                                                params[1:] if params else None,
+                                                x.eref(res, i) if container else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
             if not container:
                 res.append(fvalue)
         return res
@@ -492,7 +508,13 @@ class Archive(x.Archive):
         if elem_fields is None:
             elem_fields = elem_type.FIELDS
         for idx, elem in enumerate(elem):
-            await self._dump_field(elem, elem_fields[idx], params[1:] if params else None)
+            try:
+                self.tracker.push_index(idx)
+                await self._dump_field(elem, elem_fields[idx], params[1:] if params else None)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
 
     async def load_tuple(self, elem_type, params=None, elem=None):
         """
@@ -513,11 +535,19 @@ class Archive(x.Archive):
 
         res = elem if elem else []
         for i in range(len(elem_fields)):
-            fvalue = await self._load_field(elem_fields[i],
-                                            params[1:] if params else None,
-                                            x.eref(res, i) if elem else None)
-            if not elem:
-                res.append(fvalue)
+            try:
+                self.tracker.push_index(i)
+                fvalue = await self._load_field(elem_fields[i],
+                                                params[1:] if params else None,
+                                                x.eref(res, i) if elem else None)
+                self.tracker.pop()
+
+                if not elem:
+                    res.append(fvalue)
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
         return res
 
     async def variant(self, elem=None, elem_type=None, params=None):
@@ -583,11 +613,14 @@ class Archive(x.Archive):
         for field in elem_type.FIELDS:
             ftype = field[1]
             vcode = ftype.BOOST_VARIANT_CODE if hasattr(ftype, 'BOOST_VARIANT_CODE') else ftype.VARIANT_CODE
-            if vcode == tag:
-                fvalue = await self._load_field(ftype, field[2:], elem if not is_wrapped else None)
-                if is_wrapped:
-                    elem.set_variant(field[0], fvalue)
-                return elem if is_wrapped else fvalue
+            if vcode != tag:
+                continue
+
+            fvalue = await self._load_field(ftype, field[2:], elem if not is_wrapped else None)
+            if is_wrapped:
+                elem.set_variant(field[0], fvalue)
+            return elem if is_wrapped else fvalue
+
         raise ValueError('Unknown tag: %s' % tag)
 
     async def root(self):
@@ -652,14 +685,20 @@ class Archive(x.Archive):
         :param fvalue: explicit value for dump
         :return:
         """
-        if self.writing:
-            fname, ftype, params = field[0], field[1], field[2:]
-            fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
-            await self._dump_field(fvalue, ftype, params)
+        fname, ftype, params = field[0], field[1], field[2:]
+        try:
+            self.tracker.push_field(fname)
+            if self.writing:
+                fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
+                await self._dump_field(fvalue, ftype, params)
 
-        else:
-            fname, ftype, params = field[0], field[1], field[2:]
-            await self._load_field(ftype, params, x.eref(msg, fname))
+            else:
+                await self._load_field(ftype, params, x.eref(msg, fname))
+
+            self.tracker.pop()
+
+        except Exception as e:
+            raise helpers.ArchiveException(e, tracker=self.tracker)
 
     async def message_fields(self, msg, fields):
         """
@@ -670,7 +709,14 @@ class Archive(x.Archive):
         :return:
         """
         for field in fields:
-            await self.message_field(msg, field)
+            try:
+                self.tracker.push_field(field[0])
+                await self.message_field(msg, field)
+                self.tracker.pop()
+
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker)
+
         return msg
 
     async def dump_message(self, msg, msg_type=None):
