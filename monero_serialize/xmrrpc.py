@@ -130,6 +130,10 @@ class BlobModel(IModel):
         return 'Blob[%s; %s]' % (self.type, self.val)
 
 
+class NoSetSentinel(object):
+    pass
+
+
 def int_mark_to_size(int_type):
     if int_type == PortableRawSizeMark.BYTE:
         return 1
@@ -544,7 +548,9 @@ class Modeler(object):
         if self.writing:
             elem_is_blob = isinstance(elem, x.BlobType)
             data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
-            if data is None or len(data) == 0:
+            if data is None:
+                return NoSetSentinel()
+            if len(data) == 0:
                 return b''
 
             fval = Modeler.to_bytes(data)
@@ -555,7 +561,7 @@ class Modeler(object):
 
         else:
             if elem is None:
-                return b''
+                return NoSetSentinel()
             if self.hexlify:
                 return bytes(binascii.unhexlify(elem))
             else:
@@ -594,7 +600,8 @@ class Modeler(object):
 
         for elem in container:
             fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
-            obj.append(fvalue)
+            if not isinstance(fvalue, NoSetSentinel):
+                obj.append(fvalue)
 
         return obj if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
 
@@ -625,7 +632,7 @@ class Modeler(object):
             fvalue = await self._load_field(obj[i], elem_type,
                                             params[1:] if params else None,
                                             x.eref(res, i) if container else None)
-            if not container:
+            if not container and not isinstance(fvalue, NoSetSentinel):
                 res.append(fvalue)
         return res
 
@@ -862,7 +869,7 @@ class Modeler(object):
         else:
             raise TypeError
 
-        return x.set_elem(dst, fvalue)
+        return x.set_elem(dst, fvalue) if not isinstance(fvalue, NoSetSentinel) else fvalue
 
     async def _dump_field(self, obj, elem, elem_type, params=None):
         return await self.field(obj, elem=elem, elem_type=elem_type, params=params)
