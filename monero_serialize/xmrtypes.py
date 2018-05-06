@@ -948,3 +948,14 @@ class CacheFileData(x.MessageType):
         ('cache_data', x.BlobType),
     ]
 
+
+class AccountKeys(x.MessageType):
+    FIELDS = [
+        ('m_account_address', AccountPublicAddress),
+        ('m_spend_secret_key', SecretKey),
+        ('m_view_secret_key', SecretKey),
+        ('m_multisig_keys', x.ContainerType, SecretKey),
+    ]
+
+
+
