@@ -28,7 +28,6 @@ class Tracker(object):
 
     def push(self, obj):
         self.cur.append(obj)
-        print(str(self))
 
     def push_field(self, obj):
         self.push(TrackField(obj))
