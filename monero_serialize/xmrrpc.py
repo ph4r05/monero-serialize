@@ -566,10 +566,6 @@ class Modeler(object):
         Loads/dumps container
         :return:
         """
-
-        elem_type = x.container_elem_type(container_type, params)
-        raw_container = container_is_raw(container_type, params)
-
         if hasattr(container_type, 'kv_serialize'):
             container = container_type() if container is None else container
             return await container.kv_serialize(self, elem=container, elem_type=container_type, params=params)
