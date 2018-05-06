@@ -441,7 +441,7 @@ class Archive(x.Archive):
                 await self._dump_field(elem, elem_type, params[1:] if params else None)
                 self.tracker.pop()
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
     async def container_load(self, container_type, params=None, container=None):
         """
@@ -471,7 +471,7 @@ class Archive(x.Archive):
                                                 x.eref(res, i) if container else None)
                 self.tracker.pop()
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
             if not container:
                 res.append(fvalue)
@@ -514,7 +514,7 @@ class Archive(x.Archive):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
     async def load_tuple(self, elem_type, params=None, elem=None):
         """
@@ -546,7 +546,7 @@ class Archive(x.Archive):
                     res.append(fvalue)
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return res
 
@@ -698,7 +698,7 @@ class Archive(x.Archive):
             self.tracker.pop()
 
         except Exception as e:
-            raise helpers.ArchiveException(e, tracker=self.tracker)
+            raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
     async def message_fields(self, msg, fields):
         """
@@ -715,7 +715,7 @@ class Archive(x.Archive):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return msg
 

@@ -605,8 +605,9 @@ class Modeler(object):
                 self.tracker.push_index(idx)
                 fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
                 self.tracker.pop()
+
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
             if not isinstance(fvalue, NoSetSentinel):
                 obj.append(fvalue)
@@ -643,8 +644,9 @@ class Modeler(object):
                                                 params[1:] if params else None,
                                                 x.eref(res, i) if container else None)
                 self.tracker.pop()
+
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
             if not container and not isinstance(fvalue, NoSetSentinel):
                 res.append(fvalue)
@@ -691,7 +693,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return obj
 
@@ -729,7 +731,7 @@ class Modeler(object):
                     res.append(fvalue)
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return res
 
@@ -776,7 +778,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         else:
             try:
@@ -788,7 +790,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return fvalue
 
@@ -820,7 +822,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
             if is_wrapped:
                 elem.set_variant(field[0], fvalue)
@@ -852,7 +854,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return obj if self.writing else msg
 
@@ -888,7 +890,7 @@ class Modeler(object):
                 self.tracker.pop()
 
             except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker)
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
 
         return msg
 
