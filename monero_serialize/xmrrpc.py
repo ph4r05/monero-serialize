@@ -569,7 +569,7 @@ class Modeler(object):
             else:
                 return bytes(elem)
 
-    async def container(self, obj, container=None, container_type=None, params=None):
+    async def container(self, container=None, container_type=None, params=None, obj=None):
         """
         Loads/dumps container
         :return:
@@ -580,30 +580,31 @@ class Modeler(object):
 
         # Container entry version + container
         if self.writing:
-            return await self.container_dump(obj, container, container_type, params)
+            return await self.container_dump(container, container_type, params, obj=obj)
         else:
-            return await self.container_load(obj, container_type, params=params, container=container)
+            return await self.container_load(container_type, params=params, container=container, obj=obj)
 
-    async def container_dump(self, obj, container, container_type, params=None):
+    async def container_dump(self, container, container_type, params=None, obj=None):
         """
         Dumps container of elements to the writer.
 
-        :param obj:
         :param container:
         :param container_type:
         :param params:
+        :param obj:
         :return:
         """
         elem_type = x.container_elem_type(container_type, params)
         obj = [] if not x.has_elem(obj) else x.get_elem(obj)
 
-        if container is None:
-            return NoSetSentinel() if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
+        # todo: pod container, just concat blobs / serialized content together. loading = size / elem size...
+        if container is None:  # todo: reconsider
+            return NoSetSentinel()  # if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
 
         for idx, elem in enumerate(container):
             try:
                 self.tracker.push_index(idx)
-                fvalue = await self._dump_field(None, elem, elem_type, params[1:] if params else None)
+                fvalue = await self._dump_field(elem, elem_type, params[1:] if params else None)
                 self.tracker.pop()
 
             except Exception as e:
@@ -614,15 +615,15 @@ class Modeler(object):
 
         return obj if not self.modelize else ArrayModel(obj, xmr_type_to_type(elem_type))
 
-    async def container_load(self, obj, container_type, params=None, container=None):
+    async def container_load(self, container_type, params=None, container=None, obj=None):
         """
         Loads container of elements from the reader. Supports the container ref.
         Returns loaded container.
 
-        :param obj:
         :param container_type:
         :param params:
         :param container:
+        :param obj:
         :return:
         """
         if isinstance(obj, IModel):
@@ -640,9 +641,9 @@ class Modeler(object):
         for i in range(c_len):
             try:
                 self.tracker.push_index(i)
-                fvalue = await self._load_field(obj[i], elem_type,
+                fvalue = await self._load_field(elem_type,
                                                 params[1:] if params else None,
-                                                x.eref(res, i) if container else None)
+                                                x.eref(res, i) if container else None, obj=obj[i])
                 self.tracker.pop()
 
             except Exception as e:
@@ -653,28 +654,29 @@ class Modeler(object):
 
         return res
 
-    async def tuple(self, obj, elem=None, elem_type=None, params=None):
+    async def tuple(self, elem=None, elem_type=None, params=None, obj=None):
         """
         Loads/dumps tuple
         :return:
         """
         if hasattr(elem_type, 'kv_serialize'):
             container = elem_type() if elem is None else elem
-            return await container.kv_serialize(self, elem=elem, elem_type=elem_type, params=params)
+            return await container.kv_serialize(self, elem=elem, elem_type=elem_type, params=params, obj=obj)
 
         # TODO: if modeled return as 0=>, 1=>, ...
         if self.writing:
-            return await self.dump_tuple(obj, elem, elem_type, params)
+            return await self.dump_tuple(elem, elem_type, params, obj=obj)
         else:
-            return await self.load_tuple(obj, elem_type, params=params, elem=elem)
+            return await self.load_tuple(elem_type, params=params, elem=elem, obj=obj)
 
-    async def dump_tuple(self, obj, elem, elem_type, params=None):
+    async def dump_tuple(self, elem, elem_type, params=None, obj=None):
         """
         Dumps tuple of elements to the writer.
 
         :param elem:
         :param elem_type:
         :param params:
+        :param obj:
         :return:
         """
         if len(elem) != len(elem_type.FIELDS):
@@ -688,7 +690,7 @@ class Modeler(object):
         for idx, elem in enumerate(elem):
             try:
                 self.tracker.push_index(idx)
-                fvalue = await self._dump_field(None, elem, elem_fields[idx], params[1:] if params else None)
+                fvalue = await self._dump_field(elem, elem_fields[idx], params[1:] if params else None)
                 obj.append(fvalue)
                 self.tracker.pop()
 
@@ -697,7 +699,7 @@ class Modeler(object):
 
         return obj
 
-    async def load_tuple(self, obj, elem_type, params=None, elem=None):
+    async def load_tuple(self, elem_type, params=None, elem=None, obj=None):
         """
         Loads tuple of elements from the reader. Supports the tuple ref.
         Returns loaded tuple.
@@ -705,6 +707,7 @@ class Modeler(object):
         :param elem_type:
         :param params:
         :param elem:
+        :param obj:
         :return:
         """
         if obj is None:
@@ -722,9 +725,9 @@ class Modeler(object):
         for i in range(len(elem_fields)):
             try:
                 self.tracker.push_index(i)
-                fvalue = await self._load_field(obj[i],
-                                                params[1:] if params else None,
-                                                x.eref(res, i) if elem else None)
+                fvalue = await self._load_field(params[1:] if params else None,
+                                                x.eref(res, i) if elem else None,
+                                                obj=obj[i])
                 self.tracker.pop()
 
                 if not elem:
@@ -735,37 +738,37 @@ class Modeler(object):
 
         return res
 
-    async def variant(self, obj, elem=None, elem_type=None, params=None):
+    async def variant(self, elem=None, elem_type=None, params=None, obj=None):
         """
         Loads/dumps variant type
-        :param obj:
         :param elem:
         :param elem_type:
         :param params:
+        :param obj:
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
 
         if hasattr(elem_type, 'kv_serialize'):
             elem = elem_type() if elem is None else elem
-            return await elem.kv_serialize(self, obj, elem=elem, elem_type=elem_type, params=params)
+            return await elem.kv_serialize(self, elem=elem, elem_type=elem_type, params=params, obj=obj)
 
         if self.writing:
-            return await self.dump_variant(obj=obj, elem=elem,
-                                           elem_type=elem_type if elem_type else elem.__class__, params=params)
+            return await self.dump_variant(elem=elem,
+                                           elem_type=elem_type if elem_type else elem.__class__, params=params, obj=obj)
         else:
-            return await self.load_variant(obj=obj, elem_type=elem_type if elem_type else elem.__class__,
-                                           params=params, elem=elem)
+            return await self.load_variant(elem_type=elem_type if elem_type else elem.__class__,
+                                           params=params, elem=elem, obj=obj)
 
-    async def dump_variant(self, obj, elem, elem_type=None, params=None):
+    async def dump_variant(self, elem, elem_type=None, params=None, obj=None):
         """
         Dumps variant type to the writer.
         Supports both wrapped and raw variant.
 
-        :param obj:
         :param elem:
         :param elem_type:
         :param params:
+        :param obj:
         :return:
         """
         fvalue = None
@@ -773,7 +776,7 @@ class Modeler(object):
             try:
                 self.tracker.push_variant(elem.variant_elem_type)
                 fvalue = {
-                    elem.variant_elem: await self._dump_field(obj, getattr(elem, elem.variant_elem), elem.variant_elem_type)
+                    elem.variant_elem: await self._dump_field(getattr(elem, elem.variant_elem), elem.variant_elem_type, obj=obj)
                 }
                 self.tracker.pop()
 
@@ -785,7 +788,7 @@ class Modeler(object):
                 fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
                 self.tracker.push_variant(fdef[1])
                 fvalue = {
-                    fdef[0]: await self._dump_field(obj, elem, fdef[1])
+                    fdef[0]: await self._dump_field(elem, fdef[1], obj=obj)
                 }
                 self.tracker.pop()
 
@@ -794,16 +797,16 @@ class Modeler(object):
 
         return fvalue
 
-    async def load_variant(self, obj, elem_type, params=None, elem=None, wrapped=None):
+    async def load_variant(self, elem_type, params=None, elem=None, wrapped=None, obj=None):
         """
         Loads variant type from the reader.
         Supports both wrapped and raw variant.
 
-        :param obj:
         :param elem_type:
         :param params:
         :param elem:
         :param wrapped:
+        :param obj:
         :return:
         """
         is_wrapped = elem_type.WRAPS_VALUE if wrapped is None else wrapped
@@ -818,7 +821,7 @@ class Modeler(object):
 
             try:
                 self.tracker.push_variant(field[1])
-                fvalue = await self._load_field(obj[fname], field[1], field[2:], elem if not is_wrapped else None)
+                fvalue = await self._load_field(field[1], field[2:], elem if not is_wrapped else None, obj=obj[fname])
                 self.tracker.pop()
 
             except Exception as e:
@@ -830,77 +833,72 @@ class Modeler(object):
             return elem if is_wrapped else fvalue
         raise ValueError('Unknown tag: %s' % fname)
 
-    async def message(self, obj, msg, msg_type=None):
+    async def message(self, msg, msg_type=None, obj=None):
         """
         Loads/dumps message
-        :param obj:
         :param msg:
         :param msg_type:
-        :param use_version:
+        :param obj:
         :return:
         """
         elem_type = msg_type if msg_type is not None else msg.__class__
-        if hasattr(elem_type, 'kv_serialize'):
-            msg = elem_type() if msg is None else msg
-            return await msg.kv_serialize(self)
-
-        fields = elem_type.FIELDS
         obj = collections.OrderedDict() if not x.has_elem(obj) else x.get_elem(obj)
 
-        for field in fields:
-            try:
-                self.tracker.push_field(field[0])
-                await self.message_field(obj, msg=msg, field=field)
-                self.tracker.pop()
+        if hasattr(elem_type, 'kv_serialize'):
+            msg = elem_type() if msg is None else msg
+            return await msg.kv_serialize(self, obj=obj)
 
-            except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker) from e
+        fields = elem_type.FIELDS
+        for field in fields:
+            await self.message_field(msg=msg, field=field, obj=obj)
 
         return obj if self.writing else msg
 
-    async def message_field(self, obj, msg, field, fvalue=None):
+    async def message_field(self, msg, field, fvalue=None, obj=None):
         """
         Dumps/Loads message field
         :param msg:
         :param field:
         :param fvalue: explicit value for dump
+        :param obj:
         :return:
         """
         fname, ftype, params = field[0], field[1], field[2:]
 
-        if self.writing:
-            fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
-            await self._dump_field(eref(obj, fname, True), fvalue, ftype, params)
-        else:
-            oval = obj[fname] if self.strict_load else (obj[fname] if fname in obj else None)
-            await self._load_field(oval, ftype, params, x.eref(msg, fname))
+        try:
+            self.tracker.push_field(field[0])
 
-    async def message_fields(self, obj, msg, fields):
+            if self.writing:
+                fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
+                await self._dump_field(fvalue, ftype, params, obj=eref(obj, fname, True))
+            else:
+                oval = obj[fname] if self.strict_load else (obj[fname] if fname in obj else None)
+                await self._load_field(ftype, params, x.eref(msg, fname), obj=oval)
+
+            self.tracker.pop()
+
+        except Exception as e:
+            raise helpers.ArchiveException(e, tracker=self.tracker) from e
+
+    async def message_fields(self, msg, fields, obj=None):
         """
         Load/dump individual message fields
         :param msg:
         :param fields:
-        :param field_archiver:
+        :param obj:
         :return:
         """
         for field in fields:
-            try:
-                self.tracker.push_field(field[0])
-                await self.message_field(obj, msg, field)
-                self.tracker.pop()
-
-            except Exception as e:
-                raise helpers.ArchiveException(e, tracker=self.tracker) from e
-
+            await self.message_field(msg, field, obj)
         return msg
 
-    async def field(self, obj=None, elem=None, elem_type=None, params=None):
+    async def field(self, elem=None, elem_type=None, params=None, obj=None):
         """
         Archive field
-        :param obj:
         :param elem:
         :param elem_type:
         :param params:
+        :param obj:
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
@@ -922,27 +920,27 @@ class Modeler(object):
             fvalue = await self.unicode_type(x.get_elem(src))
 
         elif issubclass(elem_type, x.VariantType):
-            fvalue = await self.variant(dst, elem=x.get_elem(src), elem_type=elem_type, params=params)
+            fvalue = await self.variant(elem=x.get_elem(src), elem_type=elem_type, params=params, obj=dst)
 
         elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
-            fvalue = await self.container(dst, container=x.get_elem(src), container_type=elem_type, params=params)
+            fvalue = await self.container(container=x.get_elem(src), container_type=elem_type, params=params, obj=dst)
 
         elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
-            fvalue = await self.tuple(dst, elem=x.get_elem(src), elem_type=elem_type, params=params)
+            fvalue = await self.tuple(elem=x.get_elem(src), elem_type=elem_type, params=params, obj=dst)
 
         elif issubclass(elem_type, x.MessageType):
-            fvalue = await self.message(dst, x.get_elem(src), msg_type=elem_type)
+            fvalue = await self.message(x.get_elem(src), msg_type=elem_type, obj=dst)
 
         else:
             raise TypeError
 
         return x.set_elem(dst, fvalue) if not isinstance(fvalue, NoSetSentinel) else fvalue
 
-    async def _dump_field(self, obj, elem, elem_type, params=None):
-        return await self.field(obj, elem=elem, elem_type=elem_type, params=params)
+    async def _dump_field(self, elem, elem_type, params=None, obj=None):
+        return await self.field(elem=elem, elem_type=elem_type, params=params, obj=obj)
 
-    async def _load_field(self, obj, elem_type, params=None, elem=None):
-        return await self.field(obj, elem=elem, elem_type=elem_type, params=params)
+    async def _load_field(self, elem_type, params=None, elem=None, obj=None):
+        return await self.field(elem=elem, elem_type=elem_type, params=params, obj=obj)
 
 
 def container_is_raw(container_type, params):

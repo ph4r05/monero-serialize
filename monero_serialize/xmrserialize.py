@@ -407,8 +407,8 @@ class MessageType(XmrType):
             fld = self.FIELDS[idx]
         return fld
 
-    async def _msg_field(self, ar, fname=None, idx=None):
-        return await ar.message_field(self, self._field(fname=fname, idx=idx))
+    async def _msg_field(self, ar, fname=None, idx=None, **kwargs):
+        return await ar.message_field(self, self._field(fname=fname, idx=idx), **kwargs)
 
 
 FLAG_REPEATED = const(1)

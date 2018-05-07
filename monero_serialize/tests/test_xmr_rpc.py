@@ -71,7 +71,7 @@ class XmrRpcTest(aiounittest.AsyncTestCase):
         m2.m_view_secret_key = '\x15'*32
         m2.m_multisig_keys = ['\x19'*32, '\x22'*32]
 
-        obj = await mdl.message(obj=None, msg=m2)
+        obj = await mdl.message(msg=m2)
 
 
 if __name__ == "__main__":
