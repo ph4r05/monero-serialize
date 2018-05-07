@@ -977,7 +977,7 @@ class Modeler(object):
         """
         if hasattr(container_type, 'kv_serialize'):
             container = container_type() if container is None else container
-            return await container.kv_serialize(self, elem=container, elem_type=container_type, params=params)
+            return await container.kv_serialize(self, elem=container, elem_type=container_type, params=params, obj=obj)
 
         # Container entry version + container
         if self.writing:
@@ -1308,7 +1308,12 @@ class Modeler(object):
         src = elem if self.writing else obj
         dst = obj if self.writing else elem
 
-        if issubclass(elem_type, x.UVarintType):
+        # Blob wrapper. Underlying structure should be serialized as blob.
+        if x.is_type(elem_type, BlobFieldWrapper):
+            blobber = Blobber(self.writing, data=x.get_elem(src) if not self.writing else None)
+            fvalue = await blobber.blobize(elem=x.get_elem(src), elem_type=elem_type.ftype, params=params)
+
+        elif issubclass(elem_type, x.UVarintType):
             fvalue = await self.uvarint(x.get_elem(src))
 
         elif issubclass(elem_type, x.IntType):
