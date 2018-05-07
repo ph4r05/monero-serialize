@@ -61,17 +61,18 @@ class XmrRpcTest(aiounittest.AsyncTestCase):
 
     async def test_modeler(self):
         msg = xmr.AccountPublicAddress()
-        msg.m_spend_public_key = '\xff'*32
-        msg.m_view_public_key = '\xee'*32
+        msg.m_spend_public_key = b'\xff'*32
+        msg.m_view_public_key = b'\xee'*32
         mdl = xmrrpc.Modeler(True)
 
         m2 = xmr.AccountKeys()
         m2.m_account_address = msg
-        m2.m_spend_secret_key = '\x12'*32
-        m2.m_view_secret_key = '\x15'*32
-        m2.m_multisig_keys = ['\x19'*32, '\x22'*32]
+        m2.m_spend_secret_key = b'\x12'*32
+        m2.m_view_secret_key = b'\x15'*32
+        m2.m_multisig_keys = [b'\x19'*32, b'\x22'*32]
 
         obj = await mdl.message(msg=m2)
+        self.assertIsNotNone(obj)
 
 
 if __name__ == "__main__":
