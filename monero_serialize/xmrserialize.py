@@ -883,6 +883,12 @@ class Archive(object):
         assert self.iobj == reader
         return await self.field(elem=elem, elem_type=elem_type, params=params)
 
+    async def root(self):
+        """
+        Root level archive init
+        :return:
+        """
+
 
 async def dump_blob(writer, elem, elem_type, params=None):
     """
