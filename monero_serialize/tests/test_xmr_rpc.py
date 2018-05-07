@@ -74,6 +74,10 @@ class XmrRpcTest(aiounittest.AsyncTestCase):
         obj = await mdl.message(msg=m2)
         self.assertIsNotNone(obj)
 
+        m2.m_multisig_keys = None
+        obj = await mdl.message(msg=m2)
+        self.assertIsNotNone(obj)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover
