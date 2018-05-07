@@ -6,6 +6,7 @@ XMR types
 
 
 from . import xmrserialize as x
+from . import xmrrpc
 from .xmrserialize import eref
 
 
@@ -956,6 +957,13 @@ class AccountKeys(x.MessageType):
         ('m_view_secret_key', SecretKey),
         ('m_multisig_keys', x.ContainerType, SecretKey),
     ]
+
+    async def kv_serialize(self, ar, obj=None, **kwargs):
+        await self._msg_field(ar, 'm_account_address', obj=obj)
+        await self._msg_field(ar, 'm_spend_secret_key', obj=obj)
+        await self._msg_field(ar, 'm_view_secret_key', obj=obj)
+        await ar.message_field(self, ('m_multisig_keys', xmrrpc.BlobFieldWrapper(x.ContainerType), SecretKey), obj=obj)
+        return obj
 
 
 class WalletKeyData(x.MessageType):
