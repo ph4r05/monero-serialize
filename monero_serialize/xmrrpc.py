@@ -628,6 +628,9 @@ class Blobber(object):
         :return:
         """
         elem_type = x.container_elem_type(container_type, params)
+        if container is None:
+            return
+
         for idx, elem in enumerate(container):
             try:
                 self.tracker.push_index(idx)
@@ -656,6 +659,8 @@ class Blobber(object):
         data_left = len(self.iobj.buffer)
         c_len = container_type.SIZE
         if not container_type.FIX_SIZE:
+            if data_left == 0:
+                return None
             if data_left % elem_size != 0:
                 raise helpers.ArchiveException('Container size mod elem size not 0')
             c_len = data_left // elem_size
@@ -1270,6 +1275,8 @@ class Modeler(object):
             self.tracker.push_field(field[0])
 
             if self.writing:
+                if msg is None:
+                    return None
                 fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
                 await self._dump_field(fvalue, ftype, params, obj=eref(obj, fname, True))
             else:
