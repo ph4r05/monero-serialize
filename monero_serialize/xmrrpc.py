@@ -98,6 +98,12 @@ XmrTypeMap = {
 }
 
 
+class BlobFieldWrapper(object):
+    """Given field should be serialized/unserialized as blob"""
+    def __init__(self, ftype, *args, **kwargs):
+        self.ftype = ftype
+
+
 class IModel(object):
     def __init__(self, val, ser_type=None):
         self.val = val
@@ -478,6 +484,401 @@ class Archive(x.Archive):
             return SerializeType.OBJECT | SerializeType.ARRAY_FLAG, entry  # fallback to obj
         else:
             raise ValueError('Unknown: %r' % entry)
+
+
+#
+# Blob serializer
+#
+
+class Blobber(object):
+    """
+    Serializing structures to Blob for KV_SERIALIZE.
+    """
+    def __init__(self, iobj=None, writing=True, data=None, **kwargs):
+        self.writing = writing
+        self.tracker = helpers.Tracker()
+        self.iobj = x.MemoryReaderWriter() if iobj is not None else iobj
+        if data is not None:
+            self.iobj = x.MemoryReaderWriter(bytearray(data))
+
+    async def uvarint(self, elem):
+        """
+        Uvarint untouched
+        :param elem:
+        :return:
+        """
+        if self.writing:
+            return await dump_varint(self.iobj, elem)
+        else:
+            return await load_varint(self.iobj)
+
+    async def uint(self, elem, elem_type, params=None):
+        """
+        Integer types
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        if self.writing:
+            return await x.dump_uint(self.iobj, elem, elem_type.WIDTH)
+        else:
+            return await x.load_uint(self.iobj, elem_type.WIDTH)
+
+    async def unicode_type(self, elem):
+        """
+        Unicode type
+        :param elem:
+        :return:
+        """
+        if self.writing:
+            return await x.dump_unicode(self.iobj, elem)
+        else:
+            return await x.load_unicode(self.iobj)
+
+    async def blob(self, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps blob
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+        if hasattr(elem_type, 'blob_serialize'):
+            elem = elem_type() if elem is None else elem
+            return await elem.blob_serialize(self, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            return await x.dump_blob(self.iobj, elem=elem, elem_type=elem_type, params=params)
+        else:
+            return await x.load_blob(self.iobj, elem_type=elem_type, params=params, elem=elem)
+
+    async def container(self, container=None, container_type=None, params=None):
+        """
+        Loads/dumps container
+        :return:
+        """
+        if hasattr(container_type, 'blob_serialize'):
+            container = container_type() if container is None else container
+            return await container.blob_serialize(self, elem=container, elem_type=container_type, params=params)
+
+        # Container entry version + container
+        if self.writing:
+            return await self.container_dump(container, container_type, params)
+        else:
+            return await self.container_load(container_type, params=params, container=container)
+
+    async def get_element_size(self, elem_type, elem=None, params=None):
+        """
+        Determines element size after blob serialization.
+        Can be quite tricky for complicated structures - another object required to implement sizeof()
+
+        :param elem_type:
+        :param elem:
+        :param params:
+        :return:
+        """
+        if hasattr(elem_type, 'blob_size'):
+            elem = elem_type() if elem is None else elem
+            return await elem.blob_size(self)
+
+        if issubclass(elem_type, x.UVarintType):
+            raise helpers.ArchiveException('Unknown size for varint')
+
+        elif issubclass(elem_type, x.IntType):
+            return elem_type.WIDTH
+
+        elif issubclass(elem_type, x.BlobType):
+            if elem is not None:
+                return len(elem)
+            if not elem_type.FIX_SIZE:
+                raise helpers.ArchiveException('Unknown size for blob')
+            return elem_type.SIZE
+
+        elif issubclass(elem_type, x.UnicodeType):
+            raise helpers.ArchiveException('Unknown size for string')
+
+        elif issubclass(elem_type, x.VariantType):
+            raise helpers.ArchiveException('Unknown size for variant')
+
+        elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
+            celem_type = x.container_elem_type(elem_type, params)
+            if elem is not None:
+                return len(elem) * await self.get_element_size(elem_type=celem_type, elem=elem[0] if len(elem) > 0 else None)
+            if not elem_type.FIX_SIZE:
+                raise helpers.ArchiveException('Unknown size for container')
+            return elem_type.SIZE * await self.get_element_size(elem_type=celem_type)
+
+        elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
+            return sum([await self.get_element_size(t) for t in elem_type.FIELDS])
+
+        elif issubclass(elem_type, x.MessageType):
+            return sum([await self.get_element_size(t[1], params=t[2:]) for t in elem_type.FIELDS])
+
+        else:
+            raise TypeError
+
+    async def container_dump(self, container, container_type, params=None):
+        """
+        Dumps container of elements to the writer.
+        Blob array writer as in XMRRPC is serialized without size serialization
+
+        :param container:
+        :param container_type:
+        :param params:
+        :param obj:
+        :return:
+        """
+        elem_type = x.container_elem_type(container_type, params)
+        for idx, elem in enumerate(container):
+            try:
+                self.tracker.push_index(idx)
+                await self._dump_field(elem, elem_type, params[1:] if params else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
+
+    async def container_load(self, container_type, params=None, container=None, obj=None):
+        """
+        Loads container of elements from the reader. Supports the container ref.
+        Returns loaded container.
+        Blob array writer as in XMRRPC is serialized without size serialization.
+
+        :param container_type:
+        :param params:
+        :param container:
+        :param obj:
+        :return:
+        """
+        elem_type = x.container_elem_type(container_type, params)
+        elem_size = await self.get_element_size(elem_type=elem_type, params=params)
+
+        # If container is of fixed size we know the size to load from the input.
+        # Otherwise we have to read to the end
+        data_left = len(self.iobj.buffer)
+        c_len = container_type.SIZE
+        if not container_type.FIX_SIZE:
+            if data_left % elem_size != 0:
+                raise helpers.ArchiveException('Container size mod elem size not 0')
+            c_len = data_left // elem_size
+
+        res = container if container else []
+        for i in range(c_len):
+            try:
+                self.tracker.push_index(i)
+                fvalue = await self._load_field(elem_type,
+                                                params[1:] if params else None,
+                                                x.eref(res, i) if container else None)
+                self.tracker.pop()
+            except Exception as e:
+                raise helpers.ArchiveException(e, tracker=self.tracker) from e
+
+            if not container:
+                res.append(fvalue)
+        return res
+
+    async def tuple(self, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps tuple
+        :return:
+        """
+        if hasattr(elem_type, 'blob_serialize'):
+            container = elem_type() if elem is None else elem
+            return await container.blob_serialize(self, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            return await self.dump_tuple(elem, elem_type, params)
+        else:
+            return await self.load_tuple(elem_type, params=params, elem=elem)
+
+    async def dump_tuple(self, elem, elem_type, params=None, obj=None):
+        """
+        Dumps tuple of elements to the writer.
+
+        :param elem:
+        :param elem_type:
+        :param params:
+        :param obj:
+        :return:
+        """
+        raise helpers.ArchiveException('Not yet implemented')
+
+    async def load_tuple(self, elem_type, params=None, elem=None, obj=None):
+        """
+        Loads tuple of elements from the reader. Supports the tuple ref.
+        Returns loaded tuple.
+
+        :param elem_type:
+        :param params:
+        :param elem:
+        :param obj:
+        :return:
+        """
+        raise helpers.ArchiveException('Not yet implemented')
+
+    async def variant(self, elem=None, elem_type=None, params=None):
+        """
+        Loads/dumps variant type
+        :param elem:
+        :param elem_type:
+        :param params:
+        :param obj:
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+
+        if hasattr(elem_type, 'blob_serialize'):
+            elem = elem_type() if elem is None else elem
+            return await elem.bob_serialize(self, elem=elem, elem_type=elem_type, params=params)
+
+        if self.writing:
+            return await self.dump_variant(elem=elem,
+                                           elem_type=elem_type if elem_type else elem.__class__, params=params)
+        else:
+            return await self.load_variant(elem_type=elem_type if elem_type else elem.__class__,
+                                           params=params, elem=elem)
+
+    async def dump_variant(self, elem, elem_type=None, params=None, obj=None):
+        """
+        Dumps variant type to the writer.
+        Supports both wrapped and raw variant.
+
+        :param elem:
+        :param elem_type:
+        :param params:
+        :param obj:
+        :return:
+        """
+        raise helpers.ArchiveException('Not yet implemented')
+
+    async def load_variant(self, elem_type, params=None, elem=None, wrapped=None, obj=None):
+        """
+        Loads variant type from the reader.
+        Supports both wrapped and raw variant.
+
+        :param elem_type:
+        :param params:
+        :param elem:
+        :param wrapped:
+        :param obj:
+        :return:
+        """
+        raise helpers.ArchiveException('Not yet implemented')
+
+    async def message(self, msg, msg_type=None):
+        """
+        Loads/dumps message
+        :param msg:
+        :param msg_type:
+        :param obj:
+        :return:
+        """
+        elem_type = msg_type if msg_type is not None else msg.__class__
+
+        if hasattr(elem_type, 'blob_serialize'):
+            msg = elem_type() if msg is None else msg
+            return await msg.blob_serialize(self)
+
+        fields = elem_type.FIELDS
+        for field in fields:
+            await self.message_field(msg=msg, field=field)
+
+        return msg
+
+    async def message_field(self, msg, field, fvalue=None, obj=None):
+        """
+        Dumps/Loads message field
+        :param msg:
+        :param field:
+        :param fvalue: explicit value for dump
+        :param obj:
+        :return:
+        """
+        fname, ftype, params = field[0], field[1], field[2:]
+        try:
+            self.tracker.push_field(fname)
+            if self.writing:
+                fvalue = getattr(msg, fname, None) if fvalue is None else fvalue
+                await self._dump_field(fvalue, ftype, params)
+
+            else:
+                await self._load_field(ftype, params, x.eref(msg, fname))
+
+            self.tracker.pop()
+
+        except Exception as e:
+            raise helpers.ArchiveException(e, tracker=self.tracker) from e
+
+    async def message_fields(self, msg, fields, obj=None):
+        """
+        Load/dump individual message fields
+        :param msg:
+        :param fields:
+        :param obj:
+        :return:
+        """
+        for field in fields:
+            await self.message_field(msg, field, obj)
+        return msg
+
+    async def field(self, elem=None, elem_type=None, params=None):
+        """
+        Archive field
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        elem_type = elem_type if elem_type else elem.__class__
+        fvalue = None
+
+        src = elem
+        if issubclass(elem_type, x.UVarintType):
+            fvalue = await self.uvarint(x.get_elem(src))
+
+        elif issubclass(elem_type, x.IntType):
+            fvalue = await self.uint(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.BlobType):
+            fvalue = await self.blob(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.UnicodeType):
+            fvalue = await self.unicode_type(x.get_elem(src))
+
+        elif issubclass(elem_type, x.VariantType):
+            fvalue = await self.variant(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.ContainerType):  # container ~ simple list
+            fvalue = await self.container(container=x.get_elem(src), container_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
+            fvalue = await self.tuple(elem=x.get_elem(src), elem_type=elem_type, params=params)
+
+        elif issubclass(elem_type, x.MessageType):
+            fvalue = await self.message(x.get_elem(src), msg_type=elem_type)
+
+        else:
+            raise TypeError
+
+        return fvalue if self.writing else x.set_elem(elem, fvalue)
+
+    async def _dump_field(self, elem, elem_type, params=None):
+        return await self.field(elem=elem, elem_type=elem_type, params=params)
+
+    async def _load_field(self, elem_type, params=None, elem=None):
+        return await self.field(elem=elem, elem_type=elem_type, params=params)
+
+    async def blobize(self, elem=None, elem_type=None, params=None):
+        """
+        Main blobbing
+        :param elem:
+        :param elem_type:
+        :param params:
+        :return:
+        """
+        if self.writing:
+            await self.field(elem=elem, elem_type=elem_type, params=params)
+            return bytes(self.iobj.buffer)
+        else:
+            return await self.field(elem=elem, elem_type=elem_type, params=params)
 
 
 class Modeler(object):
