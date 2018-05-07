@@ -47,5 +47,5 @@ class Tracker(object):
 
 class ArchiveException(Exception):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
         self.tracker = kwargs.get('tracker', None)
