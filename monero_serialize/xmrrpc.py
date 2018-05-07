@@ -608,10 +608,16 @@ class Blobber(object):
             return elem_type.SIZE * await self.get_element_size(elem_type=celem_type)
 
         elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
-            return sum([await self.get_element_size(t) for t in elem_type.FIELDS])
+            acc = 0
+            for t in elem_type.FIELDS:
+                acc += await self.get_element_size(t)
+            return acc
 
         elif issubclass(elem_type, x.MessageType):
-            return sum([await self.get_element_size(t[1], params=t[2:]) for t in elem_type.FIELDS])
+            acc = 0
+            for t in elem_type.FIELDS:
+                acc += await self.get_element_size(t[1], params=t[2:])
+            return acc
 
         else:
             raise TypeError
