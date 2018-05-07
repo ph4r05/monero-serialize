@@ -1319,6 +1319,7 @@ class Modeler(object):
         if x.is_type(elem_type, BlobFieldWrapper):
             blobber = Blobber(self.writing, data=x.get_elem(src) if not self.writing else None)
             fvalue = await blobber.blobize(elem=x.get_elem(src), elem_type=elem_type.ftype, params=params)
+            fvalue = NoSetSentinel() if fvalue is None or len(fvalue) == 0 else fvalue
 
         elif issubclass(elem_type, x.UVarintType):
             fvalue = await self.uvarint(x.get_elem(src))
