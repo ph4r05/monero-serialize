@@ -8,9 +8,7 @@ used in transaction processing and transaction signing.
 - Mainly supports binary serialization equivalent to Monero `BEGIN_SERIALIZE_OBJECT()`.
 This serialization mechanism is used in the blockchain entity serialization.
 - Boost portable serialization added.
-- Support for `BEGIN_KV_SERIALIZE_MAP` is in progress
-  - json works,
-  - binary wire format not fully supported yet
+- Support for `BEGIN_KV_SERIALIZE_MAP` is mainly supported. JSON and binary wire format.
 
 The binary wire formats use streaming dumping / parsing for better memory efficiency.
 
