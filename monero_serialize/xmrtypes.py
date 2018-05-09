@@ -642,7 +642,7 @@ class MultisigInfo(x.MessageType):
     BOOST_VERSION = 1
     FIELDS = [
         ('signer', ECPublicKey),
-        ('LR', MultisigLR),
+        ('LR', x.ContainerType, MultisigLR),
         ('partial_key_images', x.ContainerType, KeyImage),
     ]
 
