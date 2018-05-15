@@ -907,7 +907,7 @@ async def dump_blob(writer, elem, elem_type, params=None):
     """
     elem_is_blob = isinstance(elem, BlobType)
     elem_params = elem if elem_is_blob or elem_type is None else elem_type
-    data = getattr(elem, BlobType.DATA_ATTR) if elem_is_blob else elem
+    data = bytes(getattr(elem, BlobType.DATA_ATTR) if elem_is_blob else elem)
 
     if not elem_params.FIX_SIZE:
         await dump_uvarint(writer, len(elem))

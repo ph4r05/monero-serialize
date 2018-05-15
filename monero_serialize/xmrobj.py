@@ -83,7 +83,7 @@ async def dump_blob(elem, elem_type=None):
     if data is None or len(data) == 0:
         return b''
     if isinstance(data, (bytes, bytearray, list)):
-        return base64.b16encode(data)
+        return base64.b16encode(bytes(data))
     else:
         raise ValueError('Unknown blob type')
 

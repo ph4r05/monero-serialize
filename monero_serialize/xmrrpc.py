@@ -104,6 +104,13 @@ class BlobFieldWrapper(object):
         self.ftype = ftype
 
 
+class DefaultFieldWrapper(object):
+    """Returns default if not set"""
+    def __init__(self, ftype, default=None, *args, **kwargs):
+        self.ftype = ftype
+        self.default = default
+
+
 class IModel(object):
     def __init__(self, val, ser_type=None):
         self.val = val
@@ -271,7 +278,7 @@ async def dump_blob(writer, elem, elem_type, params=None):
     :return:
     """
     elem_is_blob = isinstance(elem, x.BlobType)
-    data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
+    data = bytes(getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem)
     await dump_varint(writer, len(elem))
     await writer.awrite(data)
 
@@ -1320,6 +1327,8 @@ class Modeler(object):
 
         src = elem if self.writing else obj
         dst = obj if self.writing else elem
+
+        # TODO: optional elem, default value for deserialization...
 
         # Blob wrapper. Underlying structure should be serialized as blob.
         if x.is_type(elem_type, BlobFieldWrapper):
