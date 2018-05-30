@@ -327,7 +327,7 @@ class VariantType(XmrType):
     Supports also unwrapped value using type system to distinguish variants - simplifies the construction.
     """
     WRAPS_VALUE = False
-    FIELDS = []
+    MFIELDS = []
 
     def __init__(self, *args, **kwargs):
         self.variant_elem = None
@@ -335,7 +335,7 @@ class VariantType(XmrType):
 
         fname, fval = None, None
         if len(args) > 0:
-            fname, fval = self.find_fdef(self.FIELDS, args[0])[0], args[0]
+            fname, fval = self.find_fdef(self.MFIELDS, args[0])[0], args[0]
         if len(kwargs) > 0:
             key = list(kwargs.keys())[0]
             fname, fval = key, kwargs[key]
@@ -382,15 +382,15 @@ class ContainerType(XmrType):
 
 
 class TupleType(XmrType):
-    FIELDS = []  # simple types without file name
+    MFIELDS = []  # simple types without file name
 
     def __init__(self, *args, **kwargs):
-        if 'FIELDS' in kwargs:
-            self.FIELDS = kwargs['FIELDS']
+        if 'MFIELDS' in kwargs:
+            self.MFIELDS = kwargs['MFIELDS']
 
 
 class MessageType(XmrType):
-    FIELDS = []
+    MFIELDS = []
 
     def __init__(self, **kwargs):
         for kw in kwargs:
@@ -406,9 +406,9 @@ class MessageType(XmrType):
     def _field(self, fname=None, idx=None):
         fld = None
         if fname is not None:
-            fld = [x for x in self.FIELDS if x[0] == fname][0]
+            fld = [x for x in self.MFIELDS if x[0] == fname][0]
         elif idx is not None:
-            fld = self.FIELDS[idx]
+            fld = self.MFIELDS[idx]
         return fld
 
     async def _msg_field(self, ar, fname=None, idx=None, **kwargs):
@@ -1053,14 +1053,14 @@ async def dump_tuple(writer, elem, elem_type, params=None, field_archiver=None):
     :param field_archiver:
     :return:
     """
-    if len(elem) != len(elem_type.FIELDS):
-        raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+    if len(elem) != len(elem_type.MFIELDS):
+        raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.MFIELDS))
     await dump_uvarint(writer, len(elem))
 
     field_archiver = field_archiver if field_archiver else dump_field
     elem_fields = params[0] if params else None
     if elem_fields is None:
-        elem_fields = elem_type.FIELDS
+        elem_fields = elem_type.MFIELDS
     for idx, elem in enumerate(elem):
         await field_archiver(writer, elem, elem_fields[idx], params[1:] if params else None)
 
@@ -1082,12 +1082,12 @@ async def load_tuple(reader, elem_type, params=None, elem=None, field_archiver=N
     c_len = await load_uvarint(reader)
     if elem and c_len != len(elem):
         raise ValueError('Size mismatch')
-    if c_len != len(elem_type.FIELDS):
+    if c_len != len(elem_type.MFIELDS):
         raise ValueError('Tuple size mismatch')
 
     elem_fields = params[0] if params else None
     if elem_fields is None:
-        elem_fields = elem_type.FIELDS
+        elem_fields = elem_type.MFIELDS
 
     res = elem if elem else []
     for i in range(c_len):
@@ -1143,7 +1143,7 @@ async def dump_message(writer, msg, msg_type=None, field_archiver=None):
     :return:
     """
     mtype = msg.__class__ if msg_type is None else msg_type
-    fields = mtype.FIELDS
+    fields = mtype.MFIELDS
     if hasattr(mtype, 'serialize_archive'):
         raise ValueError('Cannot directly load, has to use archive with %s' % mtype)
 
@@ -1163,7 +1163,7 @@ async def load_message(reader, msg_type, msg=None, field_archiver=None):
     :return:
     """
     msg = msg_type() if msg is None else msg
-    fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
+    fields = msg_type.MFIELDS if msg_type else msg.__class__.MFIELDS
     if hasattr(msg_type, 'serialize_archive'):
         raise ValueError('Cannot directly load, has to use archive with %s' % msg_type)
 
@@ -1191,7 +1191,7 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
         await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
 
     else:
-        fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+        fdef = elem_type.find_fdef(elem_type.MFIELDS, elem)
         await dump_uint(writer, fdef[1].VARIANT_CODE, 1)
         await field_archiver(writer, elem, fdef[1])
 
@@ -1215,7 +1215,7 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
 
     field_archiver = field_archiver if field_archiver else load_field
     tag = await load_uint(reader, 1)
-    for field in elem_type.FIELDS:
+    for field in elem_type.MFIELDS:
         ftype = field[1]
         if ftype.VARIANT_CODE == tag:
             fvalue = await field_archiver(reader, ftype, field[2:], elem if not is_wrapped else None)

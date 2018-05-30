@@ -501,12 +501,12 @@ class Archive(x.Archive):
         :param params:
         :return:
         """
-        if len(elem) != len(elem_type.FIELDS):
-            raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+        if len(elem) != len(elem_type.MFIELDS):
+            raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.MFIELDS))
 
         elem_fields = params[0] if params else None
         if elem_fields is None:
-            elem_fields = elem_type.FIELDS
+            elem_fields = elem_type.MFIELDS
         for idx, elem in enumerate(elem):
             try:
                 self.tracker.push_index(idx)
@@ -528,7 +528,7 @@ class Archive(x.Archive):
         """
         elem_fields = params[0] if params else None
         if elem_fields is None:
-            elem_fields = elem_type.FIELDS
+            elem_fields = elem_type.MFIELDS
 
         if elem and len(elem_fields) != len(elem):
             raise ValueError('Size mismatch')
@@ -588,7 +588,7 @@ class Archive(x.Archive):
             await self._dump_field(getattr(elem, elem.variant_elem), elem.variant_elem_type)
 
         else:
-            fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+            fdef = elem_type.find_fdef(elem_type.MFIELDS, elem)
             vcode = fdef[1].BOOST_VARIANT_CODE if hasattr(fdef[1], 'BOOST_VARIANT_CODE') else fdef[1].VARIANT_CODE
             await dump_uvarint(self.iobj, vcode)
             await self._dump_field(elem, fdef[1])
@@ -610,7 +610,7 @@ class Archive(x.Archive):
             elem = elem_type() if elem is None else elem
 
         tag = await load_uvarint(self.iobj)
-        for field in elem_type.FIELDS:
+        for field in elem_type.MFIELDS:
             ftype = field[1]
             vcode = ftype.BOOST_VARIANT_CODE if hasattr(ftype, 'BOOST_VARIANT_CODE') else ftype.VARIANT_CODE
             if vcode != tag:
@@ -728,7 +728,7 @@ class Archive(x.Archive):
         :return:
         """
         mtype = msg.__class__ if msg_type is None else msg_type
-        fields = mtype.FIELDS
+        fields = mtype.MFIELDS
         for field in fields:
             await self.message_field(msg=msg, field=field)
 
@@ -742,7 +742,7 @@ class Archive(x.Archive):
         :return:
         """
         msg = msg_type() if msg is None else msg
-        fields = msg_type.FIELDS if msg_type else msg.__class__.FIELDS
+        fields = msg_type.MFIELDS if msg_type else msg.__class__.MFIELDS
         for field in fields:
             await self.message_field(msg, field)
 

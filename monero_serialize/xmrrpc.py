@@ -616,13 +616,13 @@ class Blobber(object):
 
         elif issubclass(elem_type, x.TupleType):  # tuple ~ simple list
             acc = 0
-            for t in elem_type.FIELDS:
+            for t in elem_type.MFIELDS:
                 acc += await self.get_element_size(t)
             return acc
 
         elif issubclass(elem_type, x.MessageType):
             acc = 0
-            for t in elem_type.FIELDS:
+            for t in elem_type.MFIELDS:
                 acc += await self.get_element_size(t[1], params=t[2:])
             return acc
 
@@ -795,7 +795,7 @@ class Blobber(object):
             msg = elem_type() if msg is None else msg
             return await msg.blob_serialize(self)
 
-        fields = elem_type.FIELDS
+        fields = elem_type.MFIELDS
         for field in fields:
             await self.message_field(msg=msg, field=field)
 
@@ -1098,12 +1098,12 @@ class Modeler(object):
         :param obj:
         :return:
         """
-        if len(elem) != len(elem_type.FIELDS):
-            raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.FIELDS))
+        if len(elem) != len(elem_type.MFIELDS):
+            raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.MFIELDS))
 
         elem_fields = params[0] if params else None
         if elem_fields is None:
-            elem_fields = elem_type.FIELDS
+            elem_fields = elem_type.MFIELDS
 
         obj = [] if obj is None else x.get_elem(obj)
         for idx, elem in enumerate(elem):
@@ -1134,7 +1134,7 @@ class Modeler(object):
 
         elem_fields = params[0] if params else None
         if elem_fields is None:
-            elem_fields = elem_type.FIELDS
+            elem_fields = elem_type.MFIELDS
 
         c_len = len(obj)
         if len(elem_fields) != c_len:
@@ -1204,7 +1204,7 @@ class Modeler(object):
 
         else:
             try:
-                fdef = elem_type.find_fdef(elem_type.FIELDS, elem)
+                fdef = elem_type.find_fdef(elem_type.MFIELDS, elem)
                 self.tracker.push_variant(fdef[1])
                 fvalue = {
                     fdef[0]: await self._dump_field(elem, fdef[1], obj=obj)
@@ -1234,7 +1234,7 @@ class Modeler(object):
             elem = elem_type() if elem is None else elem
 
         fname = list(obj.keys())[0]
-        for field in elem_type.FIELDS:
+        for field in elem_type.MFIELDS:
             if field[0] != fname:
                 continue
 
@@ -1267,7 +1267,7 @@ class Modeler(object):
             msg = elem_type() if msg is None else msg
             return await msg.kv_serialize(self, obj=obj)
 
-        fields = elem_type.FIELDS
+        fields = elem_type.MFIELDS
         for field in fields:
             await self.message_field(msg=msg, field=field, obj=obj)
 

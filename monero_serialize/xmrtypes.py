@@ -59,7 +59,7 @@ class UnorderedSet(x.ContainerType):
 class TxoutToScript(x.MessageType):
     __slots__ = ['keys', 'script']
     VARIANT_CODE = 0x0
-    FIELDS = [
+    MFIELDS = [
         ('keys', x.ContainerType, ECPublicKey),
         ('script', x.ContainerType, x.UInt8),
     ]
@@ -68,7 +68,7 @@ class TxoutToScript(x.MessageType):
 class TxoutToKey(x.MessageType):
     __slots__ = ['key']
     VARIANT_CODE = 0x2
-    FIELDS = [
+    MFIELDS = [
         ('key', ECPublicKey),
     ]
 
@@ -76,13 +76,13 @@ class TxoutToKey(x.MessageType):
 class TxoutToScriptHash(x.MessageType):
     __slots__ = ['hash']
     VARIANT_CODE = 0x1
-    FIELDS = [
+    MFIELDS = [
         ('hash', Hash),
     ]
 
 
 class TxoutTargetV(x.VariantType):
-    FIELDS = [
+    MFIELDS = [
         ('txout_to_script', TxoutToScript),
         ('txout_to_scripthash', TxoutToScriptHash),
         ('txout_to_key', TxoutToKey),
@@ -93,7 +93,7 @@ class TxinGen(x.MessageType):
     __slots__ = ['height']
     VARIANT_CODE = 0xff
     BOOST_VARIANT_CODE = 0x0
-    FIELDS = [
+    MFIELDS = [
         ('height', x.UVarintType),
     ]
 
@@ -102,7 +102,7 @@ class TxinToKey(x.MessageType):
     __slots__ = ['amount', 'key_offsets', 'k_image']
     VARIANT_CODE = 0x2
     BOOST_VARIANT_CODE = 0x3
-    FIELDS = [
+    MFIELDS = [
         ('amount', x.UVarintType),
         ('key_offsets', x.ContainerType, x.UVarintType),
         ('k_image', KeyImage),
@@ -113,18 +113,18 @@ class TxinToScript(x.MessageType):
     __slots__ = []
     VARIANT_CODE = 0x0
     BOOST_VARIANT_CODE = 0x1
-    FIELDS = []
+    MFIELDS = []
 
 
 class TxinToScriptHash(x.MessageType):
     __slots__ = []
     VARIANT_CODE = 0x1
     BOOST_VARIANT_CODE = 0x2
-    FIELDS = []
+    MFIELDS = []
 
 
 class TxInV(x.VariantType):
-    FIELDS = [
+    MFIELDS = [
         ('txin_gen', TxinGen),
         ('txin_to_script', TxinToScript),
         ('txin_to_scripthash', TxinToScriptHash),
@@ -134,14 +134,14 @@ class TxInV(x.VariantType):
 
 class TxOut(x.MessageType):
     __slots__ = ['amount', 'target']
-    FIELDS = [
+    MFIELDS = [
         ('amount', x.UVarintType),
         ('target', TxoutTargetV),
     ]
 
 
 class TransactionPrefix(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('version', x.UVarintType),
         ('unlock_time', x.UVarintType),
         ('vin', x.ContainerType, TxInV),
@@ -152,7 +152,7 @@ class TransactionPrefix(x.MessageType):
 
 class TransactionPrefixExtraBlob(TransactionPrefix):
     # noinspection PyTypeChecker
-    FIELDS = TransactionPrefix.FIELDS[:-1] + [
+    MFIELDS = TransactionPrefix.MFIELDS[:-1] + [
         ('extra', x.BlobType),
     ]
 
@@ -191,7 +191,7 @@ class KeyMFix(x.ContainerType):
 
 class CtKey(x.MessageType):
     __slots__ = ['dest', 'mask']
-    FIELDS = [
+    MFIELDS = [
         ('dest', ECKey),
         ('mask', ECKey),
     ]
@@ -208,7 +208,7 @@ class CtkeyM(x.ContainerType):
 
 
 class MultisigKLRki(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('K', ECKey),
         ('L', ECKey),
         ('R', ECKey),
@@ -217,14 +217,14 @@ class MultisigKLRki(x.MessageType):
 
 
 class MultisigOut(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('c', x.ContainerType, ECKey),
     ]
 
 
 class EcdhTuple(x.MessageType):
     __slots__ = ['mask', 'amount']
-    FIELDS = [
+    MFIELDS = [
         ('mask', ECKey),
         ('amount', ECKey),
     ]
@@ -232,7 +232,7 @@ class EcdhTuple(x.MessageType):
 
 class BoroSig(x.MessageType):
     __slots__ = ['s0', 's1', 'ee']
-    FIELDS = [
+    MFIELDS = [
         ('s0', Key64),
         ('s1', Key64),
         ('ee', ECKey),
@@ -241,7 +241,7 @@ class BoroSig(x.MessageType):
 
 class MgSig(x.MessageType):
     __slots__ = ['ss', 'cc', 'II']
-    FIELDS = [
+    MFIELDS = [
         ('ss', KeyM),
         ('cc', ECKey),
     ]
@@ -249,7 +249,7 @@ class MgSig(x.MessageType):
 
 class RangeSig(x.MessageType):
     __slots__ = ['asig', 'Ci']
-    FIELDS = [
+    MFIELDS = [
         ('asig', BoroSig),
         ('Ci', Key64),
     ]
@@ -257,7 +257,7 @@ class RangeSig(x.MessageType):
 
 class Bulletproof(x.MessageType):
     __slots__ = ['V', 'A', 'S', 'T1', 'T2', 'taux', 'mu', 'L', 'R', 'a', 'b', 't']
-    FIELDS = [
+    MFIELDS = [
         ('A', ECKey),
         ('S', ECKey),
         ('T1', ECKey),
@@ -272,7 +272,7 @@ class Bulletproof(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version=None):
-        await ar.message_fields(self, [('V', ECKey)] + self.FIELDS)
+        await ar.message_fields(self, [('V', ECKey)] + self.MFIELDS)
         return self
 
 
@@ -294,7 +294,7 @@ async def boost_out_pk(ar, out_pk, version):
 
 class RctSigBase(x.MessageType):
     __slots__ = ['type', 'txnFee', 'message', 'mixRing', 'pseudoOuts', 'ecdhInfo', 'outPk']
-    FIELDS = [
+    MFIELDS = [
         ('type', x.UInt8),
         ('txnFee', x.UVarintType),
         ('message', ECKey),
@@ -370,7 +370,7 @@ class RctType(object):
 
 class RctSigPrunable(x.MessageType):
     __slots__ = ['rangeSigs', 'bulletproofs', 'MGs', 'pseudoOuts']
-    FIELDS = [
+    MFIELDS = [
         ('rangeSigs', x.ContainerType, RangeSig),
         ('bulletproofs', x.ContainerType, Bulletproof),
         ('MGs', x.ContainerType, MgSig),
@@ -478,14 +478,14 @@ class RctSigPrunable(x.MessageType):
 
 class RctSig(RctSigBase):
     # noinspection PyTypeChecker
-    FIELDS = RctSigBase.FIELDS + [
+    MFIELDS = RctSigBase.MFIELDS + [
         ('p', RctSigPrunable),
     ]
 
 
 class Signature(x.MessageType):
     __slots__ = ['c', 'r']
-    FIELDS = [
+    MFIELDS = [
         ('c', ECKey),
         ('r', ECKey),
     ]
@@ -517,7 +517,7 @@ def get_signature_size(msg):
 
 class Transaction(TransactionPrefix):
     # noinspection PyTypeChecker
-    FIELDS = TransactionPrefix.FIELDS + [
+    MFIELDS = TransactionPrefix.MFIELDS + [
         ('signatures', x.ContainerType, SignatureArray),
         ('rct_signatures', RctSig),
     ]
@@ -591,7 +591,7 @@ class Transaction(TransactionPrefix):
 
 
 class BlockHeader(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('major_version', x.UInt8),
         ('minor_version', x.UInt8),
         ('timestamp', x.UInt64),
@@ -606,7 +606,7 @@ class HashVector(x.ContainerType):
 
 class Block(BlockHeader):
     # noinspection PyTypeChecker
-    FIELDS = BlockHeader.FIELDS + [
+    MFIELDS = BlockHeader.MFIELDS + [
         ('miner_tx', Transaction),
         ('tx_hashes', HashVector),
     ]
@@ -614,7 +614,7 @@ class Block(BlockHeader):
 
 class AccountPublicAddress(x.MessageType):
     __slots__ = ['m_spend_public_key', 'm_view_public_key']
-    FIELDS = [
+    MFIELDS = [
         ('m_spend_public_key', ECPublicKey),
         ('m_view_public_key', ECPublicKey),
     ]
@@ -622,7 +622,7 @@ class AccountPublicAddress(x.MessageType):
 
 class SubaddressIndex(x.MessageType):
     __slots__ = ['major', 'minor']
-    FIELDS = [
+    MFIELDS = [
         ('major', x.UInt32),
         ('minor', x.UInt32),
     ]
@@ -631,7 +631,7 @@ class SubaddressIndex(x.MessageType):
 class MultisigLR(x.MessageType):
     __slots__ = ['L', 'R']
     BOOST_VERSION = 0
-    FIELDS = [
+    MFIELDS = [
         ('L', ECKey),
         ('R', ECKey),
     ]
@@ -640,7 +640,7 @@ class MultisigLR(x.MessageType):
 class MultisigInfo(x.MessageType):
     __slots__ = ['signer', 'LR', 'partial_key_images']
     BOOST_VERSION = 1
-    FIELDS = [
+    MFIELDS = [
         ('signer', ECPublicKey),
         ('LR', x.ContainerType, MultisigLR),
         ('partial_key_images', x.ContainerType, KeyImage),
@@ -649,7 +649,7 @@ class MultisigInfo(x.MessageType):
 
 class MultisigStruct(x.MessageType):
     __slots__ = ['sigs', 'ignore', 'used_L', 'signing_keys', 'msout']
-    FIELDS = [
+    MFIELDS = [
         ('sigs', RctSig),
         ('ignore', ECPublicKey),
         ('used_L', x.ContainerType, ECKey),
@@ -663,7 +663,7 @@ class TxExtraPadding(x.MessageType):
     TX_EXTRA_PADDING_MAX_COUNT = 255
 
     VARIANT_CODE = 0x0
-    FIELDS = [
+    MFIELDS = [
         ('size', x.SizeT),
     ]
 
@@ -694,7 +694,7 @@ class TxExtraPadding(x.MessageType):
 class TxExtraPubKey(x.MessageType):
     __slots__ = ['pub_key']
     VARIANT_CODE = 0x1
-    FIELDS = [
+    MFIELDS = [
         ('pub_key', ECPublicKey),
     ]
 
@@ -702,14 +702,14 @@ class TxExtraPubKey(x.MessageType):
 class TxExtraNonce(x.MessageType):
     __slots__ = ['nonce']
     VARIANT_CODE = 0x2
-    FIELDS = [
+    MFIELDS = [
         ('nonce', x.BlobType),
     ]
 
 
 class TxExtraMergeMiningTag(x.MessageType):
     VARIANT_CODE = 0x3
-    FIELDS = [
+    MFIELDS = [
         ('field_len', x.UVarintType),
         ('depth', x.UVarintType),
         ('merkle_root', Hash),
@@ -719,7 +719,7 @@ class TxExtraMergeMiningTag(x.MessageType):
 class TxExtraAdditionalPubKeys(x.MessageType):
     __slots__ = ['data']
     VARIANT_CODE = 0x4
-    FIELDS = [
+    MFIELDS = [
         ('data', x.ContainerType, ECPublicKey),
     ]
 
@@ -727,13 +727,13 @@ class TxExtraAdditionalPubKeys(x.MessageType):
 class TxExtraMysteriousMinergate(x.MessageType):
     __slots__ = ['data']
     VARIANT_CODE = 0xde
-    FIELDS = [
+    MFIELDS = [
         ('data', x.BlobType),
     ]
 
 
 class TxExtraField(x.VariantType):
-    FIELDS = [
+    MFIELDS = [
         ('tx_extra_padding', TxExtraPadding),
         ('tx_extra_pub_key', TxExtraPubKey),
         ('tx_extra_nonce', TxExtraNonce),
@@ -748,14 +748,14 @@ class TxExtraFields(x.ContainerType):
 
 
 class OutputEntry(x.TupleType):
-    FIELDS = [
+    MFIELDS = [
         x.UVarintType, CtKey  # original: x.UInt64
     ]
 
 
 class TxSourceEntry(x.MessageType):
     BOOST_VERSION = 1
-    FIELDS = [
+    MFIELDS = [
         ('outputs', x.ContainerType, OutputEntry),
         ('real_output', x.SizeT),
         ('real_out_tx_key', ECPublicKey),
@@ -785,7 +785,7 @@ class TxSourceEntry(x.MessageType):
 class TxDestinationEntry(x.MessageType):
     __slots__ = ['amount', 'addr', 'is_subaddress']
     BOOST_VERSION = 1
-    FIELDS = [
+    MFIELDS = [
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),
         ('is_subaddress', x.BoolType),
@@ -794,7 +794,7 @@ class TxDestinationEntry(x.MessageType):
 
 class TransferDetails(x.MessageType):
     BOOST_VERSION = 9
-    FIELDS = [
+    MFIELDS = [
         ('m_block_height', x.UInt64),
         ('m_tx', TransactionPrefix),
         ('m_txid', Hash),
@@ -839,7 +839,7 @@ class TransferDetails(x.MessageType):
 
 class TxConstructionData(x.MessageType):
     BOOST_VERSION = 2
-    FIELDS = [
+    MFIELDS = [
         ('sources', x.ContainerType, TxSourceEntry),
         ('change_dts', TxDestinationEntry),
         ('splitted_dsts', x.ContainerType, TxDestinationEntry),
@@ -870,7 +870,7 @@ class TxConstructionData(x.MessageType):
 
 class PendingTransaction(x.MessageType):
     BOOST_VERSION = 3
-    FIELDS = [
+    MFIELDS = [
         ('tx', Transaction),
         ('dust', x.UInt64),
         ('fee', x.UInt64),
@@ -909,7 +909,7 @@ class PendingTransactionVector(x.ContainerType):
 
 class UnsignedTxSet(x.MessageType):
     BOOST_VERSION = 0
-    FIELDS = [
+    MFIELDS = [
         ('txes', x.ContainerType, TxConstructionData),
         ('transfers', x.ContainerType, TransferDetails),
     ]
@@ -917,7 +917,7 @@ class UnsignedTxSet(x.MessageType):
 
 class SignedTxSet(x.MessageType):
     BOOST_VERSION = 0
-    FIELDS = [
+    MFIELDS = [
         ('ptx', PendingTransactionVector),
         ('key_images', x.ContainerType, KeyImage),
     ]
@@ -925,7 +925,7 @@ class SignedTxSet(x.MessageType):
 
 class MultisigTxSet(x.MessageType):
     BOOST_VERSION = 0
-    FIELDS = [
+    MFIELDS = [
         ('m_ptx', PendingTransactionVector),
         ('m_signers', UnorderedSet, ECPublicKey),
     ]
@@ -937,21 +937,21 @@ class ChachaIv(x.BlobType):
 
 
 class KeysFileData(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('iv', ChachaIv),
         ('account_data', x.BlobType),
     ]
 
 
 class CacheFileData(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('iv', ChachaIv),
         ('cache_data', x.BlobType),
     ]
 
 
 class AccountKeys(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('m_account_address', AccountPublicAddress),
         ('m_spend_secret_key', SecretKey),
         ('m_view_secret_key', SecretKey),
@@ -967,7 +967,7 @@ class AccountKeys(x.MessageType):
 
 
 class WalletKeyData(x.MessageType):
-    FIELDS = [
+    MFIELDS = [
         ('m_creation_timestamp', x.UInt64),
         ('m_keys', AccountKeys),
     ]
