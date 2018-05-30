@@ -415,9 +415,6 @@ class MessageType(XmrType):
         return await ar.message_field(self, self._field(fname=fname, idx=idx), **kwargs)
 
 
-FLAG_REPEATED = const(1)
-
-
 class MemoryReaderWriter:
 
     def __init__(self, buffer=None):
