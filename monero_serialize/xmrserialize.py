@@ -416,7 +416,6 @@ class MessageType(XmrType):
 
 
 class MemoryReaderWriter:
-
     def __init__(self, buffer=None, read_empty=False, **kwargs):
         self.buffer = buffer if buffer else []
         self.nread = 0
@@ -425,7 +424,7 @@ class MemoryReaderWriter:
 
     async def areadinto(self, buf):
         ln = len(buf)
-        if not self.read_empty and len(self.buffer) == 0:
+        if not self.read_empty and ln > 0 and len(self.buffer) == 0:
             raise EOFError
 
         nread = min(ln, len(self.buffer))
