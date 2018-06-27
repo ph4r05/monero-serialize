@@ -422,7 +422,7 @@ class MemoryReaderWriter:
         self.nwritten = 0
         self.read_empty = read_empty
 
-    async def areadinto(self, buf):
+    def readinto(self, buf):
         ln = len(buf)
         if not self.read_empty and ln > 0 and len(self.buffer) == 0:
             raise EOFError
@@ -433,11 +433,17 @@ class MemoryReaderWriter:
         self.nread += nread
         return nread
 
-    async def awrite(self, buf):
+    async def areadinto(self, buf):
+        return self.readinto(buf)
+
+    def write(self, buf):
         self.buffer.extend(buf)
         nwritten = len(buf)
         self.nwritten += nwritten
         return nwritten
+
+    async def awrite(self, buf):
+        self.write(buf)
 
 
 class ElemRefObj:
