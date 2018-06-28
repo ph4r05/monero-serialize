@@ -429,7 +429,8 @@ class MemoryReaderWriter:
 
         nread = min(ln, len(self.buffer))
         for idx in range(nread):
-            buf[idx] = self.buffer.pop(0)
+            buf[idx] = self.buffer[idx]
+        self.buffer = self.buffer[nread:]
         self.nread += nread
         return nread
 
