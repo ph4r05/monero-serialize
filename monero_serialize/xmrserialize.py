@@ -1256,7 +1256,7 @@ async def dump_field(writer, elem, elem_type, params=None):
         await dump_blob(writer, elem, elem_type, params)
 
     elif issubclass(elem_type, UnicodeType):
-        await dump_unicode(elem)
+        await dump_unicode(writer, elem)
 
     elif issubclass(elem_type, VariantType):
         await dump_variant(writer, elem, elem_type, params)
