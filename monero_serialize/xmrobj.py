@@ -198,7 +198,7 @@ async def dump_message(obj, msg, field_archiver=None):
     :return:
     """
     mtype = msg.__class__
-    fields = mtype.MFIELDS
+    fields = mtype.f_specs()
 
     obj = collections.OrderedDict() if obj is None else get_elem(obj)
     for field in fields:
@@ -219,7 +219,7 @@ async def load_message(obj, msg_type, msg=None, field_archiver=None):
     """
     msg = msg_type() if msg is None else msg
 
-    fields = msg_type.MFIELDS if msg_type else msg.__class__.MFIELDS
+    fields = msg_type.f_specs() if msg_type else msg.__class__.f_specs()
     for field in fields:
         await load_message_field(obj, msg, field, field_archiver=field_archiver)
 
@@ -244,7 +244,7 @@ async def dump_variant(obj, elem, elem_type=None, params=None, field_archiver=No
         }
 
     else:
-        fdef = elem_type.find_fdef(elem_type.MFIELDS, elem)
+        fdef = elem_type.find_fdef(elem_type.f_specs(), elem)
         return {
             fdef[0]: await field_archiver(None, elem, fdef[1])
         }
@@ -268,7 +268,7 @@ async def load_variant(obj, elem, elem_type=None, params=None, field_archiver=No
         elem = elem_type() if elem is None else elem
 
     fname = list(obj.keys())[0]
-    for field in elem_type.MFIELDS:
+    for field in elem_type.f_specs():
         if field[0] != fname:
             continue
 

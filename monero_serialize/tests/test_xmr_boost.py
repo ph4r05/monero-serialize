@@ -49,7 +49,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_ctkey_msg(self):
         """
@@ -68,7 +68,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_destination_entries(self):
         """
@@ -101,7 +101,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         await ar2.root()
         await ar2.message(msg)
         await ar2.message(msg2)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_tx_prefix(self):
         """
@@ -136,7 +136,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_tx(self):
         """
@@ -167,7 +167,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_tx_metadata(self):
         """
@@ -208,7 +208,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(data_bin, bytearray(writer.buffer))
+        self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
     async def test_tx_unsigned(self):
         unsigned_tx_c = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_unsigned_01.txt'))
@@ -233,7 +233,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         ar2 = xmrb.Archive(writer, True)
         await ar2.root()
         await ar2.message(msg)
-        self.assertEqual(unsigned_tx, bytearray(writer.buffer))
+        self.assertEqual(unsigned_tx, bytearray(writer.get_buffer()))
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)
 
-        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinGen)
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.get_buffer()), xmr.TxinGen)
         self.assertEqual(msg.height, test_deser.height)
 
     async def test_simple_msg_into(self):
@@ -50,7 +50,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         await x.dump_message(writer, msg)
 
         msg2 = xmr.TxinGen()
-        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinGen, msg=msg2)
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.get_buffer()), xmr.TxinGen, msg=msg2)
         self.assertEqual(msg.height, test_deser.height)
         self.assertEqual(msg.height, msg2.height)
         self.assertEqual(msg2, test_deser)
@@ -64,9 +64,9 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
 
         await x.dump_blob(writer, ec_data, xmr.ECPoint)
-        self.assertTrue(len(writer.buffer), xmr.ECPoint.SIZE)
+        self.assertTrue(len(writer.get_buffer()), xmr.ECPoint.SIZE)
 
-        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.buffer), xmr.ECPoint)
+        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.get_buffer()), xmr.ECPoint)
         self.assertEqual(ec_data, test_deser)
 
     async def test_ecpoint_obj(self):
@@ -79,10 +79,10 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
 
         await x.dump_blob(writer, ec_point, xmr.ECPoint)
-        self.assertTrue(len(writer.buffer), xmr.ECPoint.SIZE)
+        self.assertTrue(len(writer.get_buffer()), xmr.ECPoint.SIZE)
 
         ec_point2 = xmr.ECPoint()
-        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.buffer), xmr.ECPoint, elem=ec_point2)
+        test_deser = await x.load_blob(x.MemoryReaderWriter(writer.get_buffer()), xmr.ECPoint, elem=ec_point2)
 
         self.assertEqual(ec_data, ec_point2.data)
         self.assertEqual(ec_point, ec_point2)
@@ -96,7 +96,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
 
         await x.dump_tuple(writer, out_entry, xmr.OutputEntry)
-        test_deser = await x.load_tuple(x.MemoryReaderWriter(writer.buffer), xmr.OutputEntry)
+        test_deser = await x.load_tuple(x.MemoryReaderWriter(writer.get_buffer()), xmr.OutputEntry)
 
         self.assertEqual(out_entry, test_deser)
 
@@ -110,7 +110,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)
 
-        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinToKey)
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.get_buffer()), xmr.TxinToKey)
         self.assertEqual(msg.amount, test_deser.amount)
         self.assertEqual(msg, test_deser)
 
@@ -125,7 +125,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_variant(writer, msg)
 
-        test_deser = await x.load_variant(x.MemoryReaderWriter(writer.buffer), xmr.TxInV, wrapped=True)
+        test_deser = await x.load_variant(x.MemoryReaderWriter(writer.get_buffer()), xmr.TxInV, wrapped=True)
         self.assertEqual(test_deser.__class__, xmr.TxInV)
         self.assertEqual(msg, test_deser)
         self.assertEqual(msg.variant_elem, test_deser.variant_elem)
@@ -141,7 +141,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)
 
-        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TransactionPrefix)
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.get_buffer()), xmr.TransactionPrefix)
         self.assertEqual(test_deser.__class__, xmr.TransactionPrefix)
         self.assertEqual(test_deser.version, msg.version)
         self.assertEqual(test_deser.unlock_time, msg.unlock_time)
@@ -163,7 +163,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         await x.dump_message(writer, msg)
 
-        test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.BoroSig)
+        test_deser = await x.load_message(x.MemoryReaderWriter(writer.get_buffer()), xmr.BoroSig)
         self.assertEqual(msg, test_deser)
 
     async def test_transaction_prefix(self):
@@ -176,7 +176,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         reader = x.MemoryReaderWriter(bytearray(tsx_bin))
         test_deser = await x.load_message(reader, xmr.TransactionPrefix)
         self.assertIsNotNone(test_deser)
-        self.assertEqual(len(reader.buffer), 0)  # no data left to read
+        self.assertEqual(len(reader.get_buffer()), 0)  # no data left to read
         self.assertEqual(len(test_deser.extra), 33)
         self.assertEqual(test_deser.extra[0], 1)
         self.assertEqual(test_deser.extra[32], 28)
@@ -202,7 +202,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         reader = x.MemoryReaderWriter(bytearray(tsx_bin))
         test_deser = await x.load_message(reader, xmr.UnsignedTxSet)
         self.assertIsNotNone(test_deser)
-        self.assertEqual(len(reader.buffer), 0)  # no data left to read
+        self.assertEqual(len(reader.get_buffer()), 0)  # no data left to read
         self.assertEqual(len(test_deser.txes), 1)
         self.assertEqual(len(test_deser.txes[0].sources), 2)
         self.assertEqual(test_deser.txes[0].change_dts.amount, 3219000000000)
@@ -232,7 +232,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         msg = xmr.Transaction()
         await ar.message(msg)
         self.assertIsNotNone(msg)
-        self.assertEqual(len(reader.buffer), 0)  # no data left to read
+        self.assertEqual(len(reader.get_buffer()), 0)  # no data left to read
         self.assertEqual(len(msg.extra), 44)
         self.assertEqual(msg.extra[0], 2)
         self.assertEqual(msg.extra[43], 199)

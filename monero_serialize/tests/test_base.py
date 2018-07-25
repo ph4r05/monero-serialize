@@ -33,7 +33,7 @@ class XmrSerializeBaseTest(aiounittest.AsyncTestCase):
             writer = x.MemoryReaderWriter()
 
             await x.dump_uvarint(writer, test_num)
-            test_deser = await x.load_uvarint(x.MemoryReaderWriter(writer.buffer))
+            test_deser = await x.load_uvarint(x.MemoryReaderWriter(writer.get_buffer()))
 
             self.assertEqual(test_num, test_deser)
 

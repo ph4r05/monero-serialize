@@ -38,7 +38,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         await ar1.message(msg)
 
         msg2 = xmr.TxinGen()
-        ar2 = x.Archive(x.MemoryReaderWriter(writer.buffer), False)
+        ar2 = x.Archive(x.MemoryReaderWriter(writer.get_buffer()), False)
         await ar2.message(msg2)
 
         self.assertEqual(msg.height, msg2.height)
@@ -56,7 +56,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         await ar1.message(msg)
 
         msg2 = xmr.BoroSig()
-        ar2 = x.Archive(x.MemoryReaderWriter(writer.buffer), False)
+        ar2 = x.Archive(x.MemoryReaderWriter(writer.get_buffer()), False)
         await ar2.message(msg2)
 
         self.assertEqual(msg, msg2)

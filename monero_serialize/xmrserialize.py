@@ -34,545 +34,12 @@ required:
 '''
 
 from .protobuf import const, load_uvarint, dump_uvarint
-
-
-_UINT_BUFFER = bytearray(1)
-
-
-async def load_uint(reader, width):
-    """
-    Constant-width integer serialization
-    :param reader:
-    :param width:
-    :return:
-    """
-    buffer = _UINT_BUFFER
-    result = 0
-    shift = 0
-    for _ in range(width):
-        await reader.areadinto(buffer)
-        result += buffer[0] << shift
-        shift += 8
-    return result
-
-
-async def dump_uint(writer, n, width):
-    """
-    Constant-width integer serialization
-    :param writer:
-    :param n:
-    :param width:
-    :return:
-    """
-    buffer = _UINT_BUFFER
-    for _ in range(width):
-        buffer[0] = n & 0xff
-        await writer.awrite(buffer)
-        n >>= 8
-
-
-def uvarint_size(n):
-    """
-    Returns size in bytes n would occupy serialized as varint
-    :param n:
-    :return:
-    """
-    bts = 0 if n != 0 else 1
-    while n:
-        n >>= 7
-        bts += 1
-    return bts
-
-
-def load_uvarint_b(buffer):
-    """
-    Variable int deserialization, synchronous from buffer.
-    :param buffer:
-    :return:
-    """
-    result = 0
-    idx = 0
-    byte = 0x80
-    while byte & 0x80:
-        byte = buffer[idx]
-        result += (byte & 0x7F) << (7 * idx)
-        idx += 1
-    return result
-
-
-def dump_uvarint_b(n):
-    """
-    Serializes uvarint to the buffer
-    :param n:
-    :return:
-    """
-    buffer = bytearray(uvarint_size(n))
-    return dump_uvarint_b_into(n, buffer, 0)
-
-
-def dump_uvarint_b_into(n, buffer, offset=0):
-    """
-    Serializes n as variable size integer to the provided buffer.
-    Buffer has to ha
-    :param n:
-    :param buffer:
-    :param offset:
-    :return:
-    """
-    shifted = True
-    while shifted:
-        shifted = n >> 7
-        buffer[offset] = (n & 0x7F) | (0x80 if shifted else 0x00)
-        offset += 1
-        n = shifted
-    return buffer
-
-
-def load_uint_b(buffer, width):
-    """
-    Loads fixed size integer from the buffer
-    :param buffer:
-    :return:
-    """
-    result = 0
-    for idx in range(width):
-        result += buffer[idx] << (8 * idx)
-    return result
-
-
-def dump_uint_b(n, width):
-    """
-    Serializes fixed size integer to the buffer
-    :param n:
-    :param width:
-    :return:
-    """
-    buffer = bytearray(width)
-    return dump_uvarint_b_into(n, width, buffer, 0)
-
-
-def dump_uint_b_into(n, width, buffer, offset=0):
-    """
-    Serializes fixed size integer to the buffer
-    :param n:
-    :param width:
-    :return:
-    """
-    for idx in range(width):
-        buffer[idx+offset] = n & 0xff
-        n >>= 8
-    return buffer
-
-
-def eq_obj_slots(l, r):
-    """
-    Compares objects with __slots__ defined
-    :param l:
-    :param r:
-    :return:
-    """
-    for f in l.__slots__:
-        if getattr(l, f, None) != getattr(r, f, None):
-            return False
-    return True
-
-
-def eq_obj_contents(l, r):
-    """
-    Compares object contents, supports slots
-    :param l:
-    :param r:
-    :return:
-    """
-    if l.__class__ is not r.__class__:
-        return False
-    if hasattr(l, '__slots__'):
-        return eq_obj_slots(l, r)
-    else:
-        return l.__dict__ == r.__dict__
-
-
-def slot_obj_dict(o):
-    """
-    Builds dict for o with __slots__ defined
-    :param o:
-    :return:
-    """
-    d = {}
-    for f in o.__slots__:
-        d[f] = getattr(o, f, None)
-    return d
-
-
-def is_type(x, types, full=False):
-    """
-    Returns true if x is of type in types tuple
-    :param x:
-    :param types:
-    :param full:
-    :return:
-    """
-    types = types if isinstance(types, tuple) else (types, )
-    ins = isinstance(x, types)
-    sub = False
-    try:
-        sub = issubclass(x, types)
-    except:
-        pass
-    res = ins or sub
-    return res if not full else (res, ins)
-
-
-class XmrType:
-    VERSION = 0
-
-
-class UVarintType(XmrType):
-    pass
-
-
-class IntType(XmrType):
-    WIDTH = 0
-    SIGNED = 0
-    VARIABLE = 0
-
-    def __repr__(self):
-        return '%s:<w: %s, sig: %s, var: %s>' % (self.__class__, self.WIDTH, self.SIGNED, self.VARIABLE)
-
-
-class BoolType(IntType):
-    WIDTH = 1
-
-
-class UInt8(IntType):
-    WIDTH = 1
-
-
-class Int8(IntType):
-    SIGNED = 1
-    WIDTH = 1
-
-
-class UInt16(IntType):
-    WIDTH = 2
-
-
-class Int16(IntType):
-    SIGNED = 1
-    WIDTH = 2
-
-
-class UInt32(IntType):
-    WIDTH = 4
-
-
-class Int32(IntType):
-    SIGNED = 1
-    WIDTH = 4
-
-
-class UInt64(IntType):
-    WIDTH = 8
-
-
-class SizeT(UInt64):
-    WIDTH = 8
-
-
-class Int64(IntType):
-    SIGNED = 1
-    WIDTH = 8
-
-
-class BlobType(XmrType):
-    """
-    Binary data
-
-    Represented as bytearray() or a list of values in data structures.
-    Not wrapped in the BlobType, the BlobType is only a scheme descriptor.
-    Behaves in the same way as primitive types
-
-    Supports also the wrapped version (__init__, DATA_ATTR, eq, repr...),
-    """
-    DATA_ATTR = 'data'
-    FIX_SIZE = 0
-    SIZE = 0
-
-    def __init__(self, *args, **kwargs):
-        if len(args) > 1:
-            raise ValueError()
-        if len(args) > 0:
-            setattr(self, self.DATA_ATTR, args[0])
-        if 'SIZE' in kwargs:
-            self.SIZE = kwargs['SIZE']
-        if 'FIX_SIZE' in kwargs:
-            self.FIX_SIZE = kwargs['FIX_SIZE']
-
-    def __eq__(self, rhs):
-        return eq_obj_contents(self, rhs)
-
-    def __repr__(self):
-        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
-        return '<%s: %s>' % (self.__class__.__name__, dct)
-
-
-class UnicodeType(XmrType):
-    pass
-
-
-class VariantType(XmrType):
-    """
-    Union of types, variant tags needed. is only one of the types. List in typedef, enum.
-    Wraps the variant type in order to unambiguously support variant of variants.
-    Supports also unwrapped value using type system to distinguish variants - simplifies the construction.
-    """
-    WRAPS_VALUE = False
-    MFIELDS = []
-
-    def __init__(self, *args, **kwargs):
-        self.variant_elem = None
-        self.variant_elem_type = None
-
-        fname, fval = None, None
-        if len(args) > 0:
-            fname, fval = self.find_fdef(self.MFIELDS, args[0])[0], args[0]
-        if len(kwargs) > 0:
-            key = list(kwargs.keys())[0]
-            fname, fval = key, kwargs[key]
-        if fname:
-            self.set_variant(fname, fval)
-
-    @staticmethod
-    def find_fdef(fields, elem):
-        for x in fields:
-            if isinstance(elem, x[1]):
-                return x
-        raise ValueError('Unrecognized variant')
-
-    def set_variant(self, fname, fvalue):
-        self.variant_elem = fname
-        self.variant_elem_type = fvalue.__class__
-        setattr(self, fname, fvalue)
-
-    def __eq__(self, rhs):
-        return eq_obj_contents(self, rhs)
-
-    def __repr__(self):
-        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
-        return '<%s: %s>' % (self.__class__.__name__, dct)
-
-
-class ContainerType(XmrType):
-    """
-    Array of elements
-    Represented as a real array in the data structures, not wrapped in the ContainerType.
-    The Container type is used only as a schema descriptor for serialization.
-    """
-    FIX_SIZE = 0
-    SIZE = 0
-    ELEM_TYPE = None
-
-    def __init__(self, *args, **kwargs):
-        if 'SIZE' in kwargs:
-            self.SIZE = kwargs['SIZE']
-        if 'FIX_SIZE' in kwargs:
-            self.FIX_SIZE = kwargs['FIX_SIZE']
-        if 'ELEM_TYPE' in kwargs:
-            self.ELEM_TYPE = kwargs['ELEM_TYPE']
-
-
-class TupleType(XmrType):
-    MFIELDS = []  # simple types without file name
-
-    def __init__(self, *args, **kwargs):
-        if 'MFIELDS' in kwargs:
-            self.MFIELDS = kwargs['MFIELDS']
-
-
-class MessageType(XmrType):
-    MFIELDS = []
-
-    def __init__(self, **kwargs):
-        for kw in kwargs:
-            setattr(self, kw, kwargs[kw])
-
-    def __eq__(self, rhs):
-        return eq_obj_contents(self, rhs)
-
-    def __repr__(self):
-        dct = slot_obj_dict(self) if hasattr(self, '__slots__') else self.__dict__
-        return '<%s: %s>' % (self.__class__.__name__, dct)
-
-    def _field(self, fname=None, idx=None):
-        fld = None
-        if fname is not None:
-            fld = [x for x in self.MFIELDS if x[0] == fname][0]
-        elif idx is not None:
-            fld = self.MFIELDS[idx]
-        return fld
-
-    async def _msg_field(self, ar, fname=None, idx=None, **kwargs):
-        return await ar.message_field(self, self._field(fname=fname, idx=idx), **kwargs)
-
-
-class MemoryReaderWriter:
-    def __init__(self, buffer=None, read_empty=False, **kwargs):
-        self.buffer = buffer if buffer else []
-        self.nread = 0
-        self.nwritten = 0
-        self.read_empty = read_empty
-
-    def readinto(self, buf):
-        ln = len(buf)
-        if not self.read_empty and ln > 0 and len(self.buffer) == 0:
-            raise EOFError
-
-        nread = min(ln, len(self.buffer))
-        for idx in range(nread):
-            buf[idx] = self.buffer[idx]
-        self.buffer = self.buffer[nread:]
-        self.nread += nread
-        return nread
-
-    async def areadinto(self, buf):
-        return self.readinto(buf)
-
-    def write(self, buf):
-        self.buffer.extend(buf)
-        nwritten = len(buf)
-        self.nwritten += nwritten
-        return nwritten
-
-    async def awrite(self, buf):
-        self.write(buf)
-
-
-class ElemRefObj:
-    def __repr__(self):
-        return 'RefObj'
-
-
-class ElemRefArr:
-    def __repr__(self):
-        return 'RefAssoc'
-
-
-def gen_elem_array(size, elem_type=None):
-    """
-    Generates element array of given size and initializes with given type.
-    Supports container type, used for pre-allocation before deserialization.
-    :param size:
-    :param elem_type:
-    :return:
-    """
-    if elem_type is None or not callable(elem_type):
-        return [elem_type] * size
-    if is_type(elem_type, ContainerType):
-        elem_type = lambda: []
-    res = []
-    for _ in range(size):
-        res.append(elem_type())
-    return res
-
-
-def is_elem_ref(elem_ref):
-    """
-    Returns true if the elem_ref is an element reference
-
-    :param elem_ref:
-    :return:
-    """
-    return elem_ref and isinstance(elem_ref, tuple) and len(elem_ref) == 3 \
-           and (elem_ref[0] == ElemRefObj or elem_ref[0] == ElemRefArr)
-
-
-def has_elem(elem_ref):
-    """
-    Has element?
-    :param elem_ref:
-    :return:
-    """
-    if not is_elem_ref(elem_ref):
-        return False
-    elif elem_ref[0] == ElemRefObj:
-        return hasattr(elem_ref[1], elem_ref[2])
-    elif elem_ref[0] == ElemRefArr:
-        return elem_ref[2] in elem_ref[1]
-
-
-def get_elem(elem_ref, default=None):
-    """
-    Gets the element referenced by elem_ref or returns the elem_ref directly if its not a reference.
-
-    :param elem_ref:
-    :param default:
-    :return:
-    """
-    if not is_elem_ref(elem_ref):
-        return elem_ref
-    elif elem_ref[0] == ElemRefObj:
-        return getattr(elem_ref[1], elem_ref[2], default)
-    elif elem_ref[0] == ElemRefArr:
-        return elem_ref[1][elem_ref[2]]
-
-
-def set_elem(elem_ref, elem):
-    """
-    Sets element referenced by the elem_ref. Returns the elem.
-
-    :param elem_ref:
-    :param elem:
-    :return:
-    """
-    if elem_ref is None or elem_ref == elem or not is_elem_ref(elem_ref):
-        return elem
-
-    elif elem_ref[0] == ElemRefObj:
-        setattr(elem_ref[1], elem_ref[2], elem)
-        return elem
-
-    elif elem_ref[0] == ElemRefArr:
-        elem_ref[1][elem_ref[2]] = elem
-        return elem
-
-
-def eref(obj, key, is_assoc=None):
-    """
-    Returns element reference
-    :param obj:
-    :param key:
-    :param is_assoc:
-    :return:
-    """
-    if obj is None:
-        return None
-    if isinstance(key, int) or (is_assoc is not None and is_assoc):
-        return ElemRefArr, get_elem(obj), key
-    else:
-        return ElemRefObj, get_elem(obj), key
-
-
-def get_ftype_params(field):
-    """
-    Convenient getter
-    :param field:
-    :return:
-    """
-    return field[1], field[2:]
-
-
-def container_elem_type(container_type, params):
-    """
-    Returns container element type
-
-    :param container_type:
-    :param params:
-    :return:
-    """
-    elem_type = params[0] if params else None
-    if elem_type is None:
-        elem_type = container_type.ELEM_TYPE
-    return elem_type
+from .core.readwriter import MemoryReaderWriter
+from .core.base_types import *
+from .core.erefs import has_elem, set_elem, get_elem, ElemRefArr, ElemRefObj, eref, is_elem_ref
+from .core.int_serialize import *
+from .core.message_types import *
+from .core.obj_helper import *
 
 
 class Archive(object):
@@ -1063,14 +530,14 @@ async def dump_tuple(writer, elem, elem_type, params=None, field_archiver=None):
     :param field_archiver:
     :return:
     """
-    if len(elem) != len(elem_type.MFIELDS):
-        raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.MFIELDS))
+    if len(elem) != len(elem_type.f_specs()):
+        raise ValueError('Fixed size tuple has not defined size: %s' % len(elem_type.f_specs()))
     await dump_uvarint(writer, len(elem))
 
     field_archiver = field_archiver if field_archiver else dump_field
     elem_fields = params[0] if params else None
     if elem_fields is None:
-        elem_fields = elem_type.MFIELDS
+        elem_fields = elem_type.f_specs()
     for idx, elem in enumerate(elem):
         await field_archiver(writer, elem, elem_fields[idx], params[1:] if params else None)
 
@@ -1092,12 +559,12 @@ async def load_tuple(reader, elem_type, params=None, elem=None, field_archiver=N
     c_len = await load_uvarint(reader)
     if elem and c_len != len(elem):
         raise ValueError('Size mismatch')
-    if c_len != len(elem_type.MFIELDS):
+    if c_len != len(elem_type.f_specs()):
         raise ValueError('Tuple size mismatch')
 
     elem_fields = params[0] if params else None
     if elem_fields is None:
-        elem_fields = elem_type.MFIELDS
+        elem_fields = elem_type.f_specs()
 
     res = elem if elem else []
     for i in range(c_len):
@@ -1153,7 +620,7 @@ async def dump_message(writer, msg, msg_type=None, field_archiver=None):
     :return:
     """
     mtype = msg.__class__ if msg_type is None else msg_type
-    fields = mtype.MFIELDS
+    fields = mtype.f_specs()
     if hasattr(mtype, 'serialize_archive'):
         raise ValueError('Cannot directly load, has to use archive with %s' % mtype)
 
@@ -1173,7 +640,7 @@ async def load_message(reader, msg_type, msg=None, field_archiver=None):
     :return:
     """
     msg = msg_type() if msg is None else msg
-    fields = msg_type.MFIELDS if msg_type else msg.__class__.MFIELDS
+    fields = msg_type.f_specs() if msg_type else msg.__class__.f_specs()
     if hasattr(msg_type, 'serialize_archive'):
         raise ValueError('Cannot directly load, has to use archive with %s' % msg_type)
 
@@ -1201,7 +668,7 @@ async def dump_variant(writer, elem, elem_type=None, params=None, field_archiver
         await field_archiver(writer, getattr(elem, elem.variant_elem), elem.variant_elem_type)
 
     else:
-        fdef = elem_type.find_fdef(elem_type.MFIELDS, elem)
+        fdef = elem_type.find_fdef(elem_type.f_specs(), elem)
         await dump_uint(writer, fdef[1].VARIANT_CODE, 1)
         await field_archiver(writer, elem, fdef[1])
 
@@ -1225,7 +692,7 @@ async def load_variant(reader, elem_type, params=None, elem=None, wrapped=None, 
 
     field_archiver = field_archiver if field_archiver else load_field
     tag = await load_uint(reader, 1)
-    for field in elem_type.MFIELDS:
+    for field in elem_type.f_specs():
         ftype = field[1]
         if ftype.VARIANT_CODE == tag:
             fvalue = await field_archiver(reader, ftype, field[2:], elem if not is_wrapped else None)
