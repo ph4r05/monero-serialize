@@ -52,7 +52,7 @@ class MemoryReaderWriter:
 
         # Deallocation threshold triggered
         if self.threshold is not None and self.offset >= self.threshold:
-            self.buffer = self.buffer[self.offset:]
+            self.buffer = self.buffer[self.offset :]
             self.woffset -= self.offset
             self.offset = 0
 
