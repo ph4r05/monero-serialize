@@ -838,7 +838,7 @@ class TransferDetails(x.MessageType):
 
 
 class TxConstructionData(x.MessageType):
-    BOOST_VERSION = 2
+    BOOST_VERSION = 3
     MFIELDS = [
         ('sources', x.ContainerType, TxSourceEntry),
         ('change_dts', TxDestinationEntry),
@@ -847,6 +847,7 @@ class TxConstructionData(x.MessageType):
         ('extra', x.ContainerType, x.UInt8),
         ('unlock_time', x.UInt64),
         ('use_rct', x.BoolType),
+        # ('use_bulletproofs', x.BoolType),
         ('dests', x.ContainerType, TxDestinationEntry),
         ('subaddr_account', x.UInt32),
         ('subaddr_indices', x.ContainerType, x.UVarintType),  # original: x.UInt32
@@ -865,6 +866,8 @@ class TxConstructionData(x.MessageType):
         await self._msg_field(ar, 'subaddr_account')
         await self._msg_field(ar, 'subaddr_indices')
         await self._msg_field(ar, 'selected_transfers')
+        if version >= 3:
+            await ar.message_field(self, ('use_bulletproofs', x.BoolType))
         return self
 
 
