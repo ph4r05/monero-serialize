@@ -398,10 +398,10 @@ class RctSigPrunable(x.MessageType):
         if type == RctType.SimpleBulletproof or type == RctType.FullBulletproof:
             await ar.tag('bp')
             await ar.begin_array()
+            await ar.prepare_container(outputs, eref(self, 'bulletproofs'), elem_type=Bulletproof)
             if len(self.bulletproofs) != outputs:
                 raise ValueError('Bulletproofs size mismatch')
 
-            await ar.prepare_container(outputs, eref(self, 'bulletproofs'), elem_type=Bulletproof)
             for i in range(len(self.bulletproofs)):
                 await ar.field(elem=eref(self.bulletproofs, i), elem_type=Bulletproof)
             await ar.end_array()
