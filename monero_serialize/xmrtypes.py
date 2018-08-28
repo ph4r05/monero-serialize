@@ -364,8 +364,9 @@ class RctType(object):
     Null = 0
     Full = 1
     Simple = 2
-    FullBulletproof = 3
-    SimpleBulletproof = 4
+    Bulletproof = 3
+    FullBulletproof = 3     # pre v9
+    SimpleBulletproof = 4   # pre v9
 
 
 class RctSigPrunable(x.MessageType):
@@ -398,11 +399,13 @@ class RctSigPrunable(x.MessageType):
         if type == RctType.SimpleBulletproof or type == RctType.FullBulletproof:
             await ar.tag('bp')
             await ar.begin_array()
-            await ar.prepare_container(outputs, eref(self, 'bulletproofs'), elem_type=Bulletproof)
-            if len(self.bulletproofs) != outputs:
-                raise ValueError('Bulletproofs size mismatch')
+            bps = [0]
+            if ar.writing:
+                bps[0] = len(self.bulletproofs)
+            await ar.field(elem=eref(bps, 0), elem_type=x.UVarintType)
+            await ar.prepare_container(bps[0], eref(self, 'bulletproofs'), elem_type=Bulletproof)
 
-            for i in range(len(self.bulletproofs)):
+            for i in range(bps[0]):
                 await ar.field(elem=eref(self.bulletproofs, i), elem_type=Bulletproof)
             await ar.end_array()
 
@@ -422,7 +425,8 @@ class RctSigPrunable(x.MessageType):
 
         # We keep a byte for size of MGs, because we don't know whether this is
         # a simple or full rct signature, and it's starting to annoy the hell out of me
-        mg_elements = inputs if type == RctType.Simple or type == RctType.SimpleBulletproof else 1
+        is_full = type == RctType.Full
+        mg_elements = inputs if not is_full else 1
         await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
         if len(self.MGs) != mg_elements:
             raise ValueError('MGs size mismatch')
@@ -441,7 +445,7 @@ class RctSigPrunable(x.MessageType):
 
             for j in range(mixin + 1):
                 await ar.begin_array()
-                mg_ss2_elements = 1 + (1 if type == RctType.Simple or type == RctType.SimpleBulletproof else inputs)
+                mg_ss2_elements = 1 + (1 if not is_full else inputs)
                 await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
 
                 if ar.writing and len(self.MGs[i].ss[j]) != mg_ss2_elements:
@@ -456,7 +460,7 @@ class RctSigPrunable(x.MessageType):
             await ar.end_object()
         await ar.end_array()
 
-        if type == RctType.SimpleBulletproof:
+        if type in [RctType.FullBulletproof, RctType.SimpleBulletproof]:
             await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
