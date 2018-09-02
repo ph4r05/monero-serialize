@@ -540,7 +540,7 @@ class Archive(object):
             if container_type.FIX_SIZE
             else await load_uvarint(reader)
         )
-        if container and c_len != len(container):
+        if container and get_elem(container) and c_len != len(container):
             raise ValueError("Size mismatch")
 
         elem_type = container_elem_type(container_type, params)
