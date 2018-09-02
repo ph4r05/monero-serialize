@@ -128,10 +128,37 @@ class IModel(object):
     def to_json(self):
         return self.val
 
+    def val(self):
+        return self.val()
+
 
 class ArrayModel(IModel):
+    def __init__(self, val, ser_type=None):
+        super().__init__(val, ser_type)
+        self.current_idx = 0
+
     def __str__(self):
         return 'Arr[%s; %s]' % (self.type, self.val)
+
+    def __len__(self):
+        return len(self.val)
+
+    def __getitem__(self, item):
+        return self.val[item]
+
+    def __setitem__(self, key, value):
+        self.val[key] = value
+
+    def __iter__(self):
+        self.current_idx = 0
+        return self
+
+    def __next__(self):
+        if self.current_idx >= len(self):
+            raise StopIteration
+        else:
+            self.current_idx += 1
+            return self[self.current_idx - 1]
 
 
 class IntegerModel(IModel):
