@@ -552,11 +552,12 @@ class Transaction(TransactionPrefix):
                     else:
                         raise ValueError('Unexpected sig')
 
-                await ar.prepare_container(sig_size, eref(self.signatures, i), elem_type=Signature)
+                await ar.prepare_container(sig_size, eref(self.signatures, i), elem_type=SignatureArray)
                 if sig_size != len(self.signatures[i]):
                     raise ValueError('Unexpected sig size')
 
-                await ar.message(self.signatures[i], Signature)
+                for j in range(sig_size):
+                    await ar.field(eref(self.signatures[i], j), Signature)
 
         else:
             await ar.tag('rct_signatures')
@@ -596,9 +597,9 @@ class Transaction(TransactionPrefix):
 
 class BlockHeader(x.MessageType):
     MFIELDS = [
-        ('major_version', x.UInt8),
-        ('minor_version', x.UInt8),
-        ('timestamp', x.UInt64),
+        ('major_version', x.UVarintType),  # x.UInt8
+        ('minor_version', x.UVarintType),  # x.UInt8
+        ('timestamp', x.UVarintType),  # x.UInt64
         ('prev_id', Hash),
         ('nonce', x.UInt32),
     ]
