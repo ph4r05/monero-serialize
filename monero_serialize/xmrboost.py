@@ -164,14 +164,63 @@ class VersionDatabase(object):
         self.db[twrap] = (track, version)
 
 
+class VersionSetting(object):
+    def __init__(self):
+        self.db = {}  # type: dict[type -> int]
+        self.current_idx = 0
+        self.iter_keys = None
+
+    def wrap(self, inp, params=None):
+        if isinstance(inp, TypeWrapper):
+            return inp
+        elif isinstance(inp, tuple):
+            return TypeWrapper(inp[0], params[1])
+        return TypeWrapper(inp, params)
+
+    def set(self, twrap, version, params=None):
+        twrap = self.wrap(twrap, params)
+        if twrap in self.db:
+            return self
+        self.db[twrap] = version
+        return self
+
+    def __getitem__(self, item):
+        item = self.wrap(item)
+        return self.db[item]
+
+    def __setitem__(self, key, value):
+        key = self.wrap(key)
+        self.db[key] = value
+
+    def __len__(self):
+        return len(self.db)
+
+    def __contains__(self, item):
+        return self.wrap(item) in self.db
+
+    def __iter__(self):
+        self.iter_keys = list(self.db.keys())
+        self.current_idx = 0
+        return self
+
+    def __next__(self):
+        if self.current_idx >= len(self.iter_keys):
+            raise StopIteration
+        else:
+            self.current_idx += 1
+            c_key = self.iter_keys[self.current_index - 1]
+            return c_key, self[c_key]
+
+
 class Archive(x.Archive):
     """
     Boost symmetric serialization archive
     """
 
-    def __init__(self, iobj, writing=True, **kwargs):
+    def __init__(self, iobj, writing=True, versions=None, **kwargs):
         super().__init__(iobj, writing, **kwargs)
         self.version_db = VersionDatabase()
+        self.version_settings = versions  # type: VersionSetting
         self.tracker = helpers.Tracker()
 
     def type_in_db(self, tp, params):
@@ -182,6 +231,21 @@ class Archive(x.Archive):
         """
         tw = TypeWrapper(tp, params)
         return self.version_db.is_versioned(tw)
+
+    def _cur_version(self, tw, elem=None):
+        has_version = False
+        if elem:
+            relem = x.get_elem(elem)
+            if relem and hasattr(relem, 'BOOST_VERSION_CUR'):
+                version = getattr(relem, 'BOOST_VERSION_CUR')
+                has_version = True
+
+        if not has_version and self.version_settings and tw in self.version_settings:
+            version = self.version_settings[tw]
+
+        else:
+            version = tw.get_current_version()
+        return version
 
     async def get_version(self, tp, params):
         """
@@ -208,13 +272,14 @@ class Archive(x.Archive):
 
         return self.version_db.get_version(tw)[1]
 
-    async def set_version(self, tp, params, version=None):
+    async def set_version(self, tp, params, version=None, elem=None):
         """
         Stores version to the stream if not stored yet
 
         :param tp:
         :param params:
         :param version:
+        :param elem:
         :return:
         """
         tw = TypeWrapper(tp, params)
@@ -224,23 +289,25 @@ class Archive(x.Archive):
         # If not in the DB, store to the archive at the current position
         if not self.version_db.is_versioned(tw):
             if version is None:
-                version = tw.get_current_version()
+                version = self._cur_version(tw, elem)
+
             await dump_uvarint(self.iobj, 0)
             await dump_uvarint(self.iobj, version)
             self.version_db.set_version(tw, 0, version)
 
         return self.version_db.get_version(tw)[1]
 
-    async def version(self, tp, params):
+    async def version(self, tp, params, version=None, elem=None):
         """
         Symmetric version management
 
         :param tp:
         :param params:
+        :param version:
         :return:
         """
         if self.writing:
-            return await self.set_version(tp, params)
+            return await self.set_version(tp, params, version, elem)
         else:
             return await self.get_version(tp, params)
 
@@ -294,7 +361,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
-        version = await self.version(elem_type, params)
+        version = await self.version(elem_type, params, elem=elem)
 
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
@@ -364,7 +431,7 @@ class Archive(x.Archive):
         elem_elementary = TypeWrapper.is_elementary_type(elem_type)
         is_versioned = not elem_elementary and not raw_container
 
-        version = await self.version(container_type, params) if is_versioned else None
+        version = await self.version(container_type, params, elem=container) if is_versioned else None
         if hasattr(container_type, 'boost_serialize'):
             container = container_type() if container is None else container
             return await container.boost_serialize(self, elem=container, elem_type=container_type, params=params, version=version)
@@ -391,7 +458,7 @@ class Archive(x.Archive):
             if not container_is_raw(container_type, params):
                 c_elem = x.container_elem_type(container_type, params)
                 c_ver = TypeWrapper(c_elem)
-                await dump_uvarint(self.iobj, c_ver.get_current_version())  # element version
+                await dump_uvarint(self.iobj, self._cur_version(c_ver))  # element version
 
             if container_type.FIX_SIZE and container_len != container_type.SIZE:
                 raise ValueError('Fixed size container has not defined size: %s' % container_type.SIZE)
@@ -482,7 +549,7 @@ class Archive(x.Archive):
         Loads/dumps tuple
         :return:
         """
-        version = await self.version(elem_type, params)
+        version = await self.version(elem_type, params, elem=elem)
         if hasattr(elem_type, 'boost_serialize'):
             container = elem_type() if elem is None else elem
             return await container.boost_serialize(self, elem=elem, elem_type=elem_type, params=params, version=version)
@@ -559,7 +626,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = elem_type if elem_type else elem.__class__
-        version = await self.version(elem_type, params)
+        version = await self.version(elem_type, params, elem=elem)
 
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
@@ -666,7 +733,7 @@ class Archive(x.Archive):
         :return:
         """
         elem_type = msg_type if msg_type is not None else msg.__class__
-        version = await self.version(elem_type, None) if use_version is None else use_version
+        version = await self.version(elem_type, None, elem=msg) if use_version is None else use_version
 
         if hasattr(elem_type, 'boost_serialize'):
             msg = elem_type() if msg is None else msg
