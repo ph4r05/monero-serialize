@@ -150,18 +150,19 @@ class Archive(object):
         else:
             return await load_uvarint(self.iobj)
 
-    async def uint(self, elem, elem_type, params=None):
+    async def uint(self, elem, elem_type, params=None, width=None):
         """
         Fixed size int
         :param elem:
         :param elem_type:
         :param params:
+        :param width:
         :return:
         """
         if self.writing:
-            return await dump_uint(self.iobj, elem, elem_type.WIDTH)
+            return await dump_uint(self.iobj, elem, width if width else elem_type.WIDTH)
         else:
-            return await load_uint(self.iobj, elem_type.WIDTH)
+            return await load_uint(self.iobj, width if width else elem_type.WIDTH)
 
     async def unicode_type(self, elem):
         """
