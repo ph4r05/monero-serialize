@@ -272,7 +272,7 @@ class Bulletproof(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version=None):
-        await ar.message_fields(self, [('V', ECKey)] + self.MFIELDS)
+        await ar.message_fields(self, [('V', KeyV)] + self.MFIELDS)
         return self
 
 
