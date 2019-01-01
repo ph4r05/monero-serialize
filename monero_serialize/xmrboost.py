@@ -31,7 +31,7 @@ async def load_uvarint(reader):
     shift = 0
 
     if size > 8:
-        raise ValueError('Varint size too big')
+        raise ValueError('Varint size too big: %s' % size)
 
     # TODO: endianity, rev bytes if needed
     for _ in range(size):
@@ -212,6 +212,48 @@ class VersionSetting(object):
             return c_key, self[c_key]
 
 
+class ObjectRegistry(object):
+    def __init__(self):
+        self.db = {}
+        self.cur_tr = []
+
+    def __getitem__(self, ver):
+        return self.db[ver]
+
+    def __setitem__(self, ver, obj):
+        self.db[ver] = obj
+
+    def __len__(self):
+        return len(self.db)
+
+    def __contains__(self, item):
+        return item in self.db
+
+    def pop_tr(self):
+        return self.cur_tr.pop()
+
+    def set_tr(self, tr=None):
+        self.cur_tr.append(tr)
+
+    def top_tr(self):
+        return self.cur_tr[-1]
+
+    def set_obj(self, obj):
+        if not self.is_tracking():
+            raise ValueError("No current version")
+        self.db[self.top_tr()] = obj
+        return self.pop_tr()
+
+    def is_tracking(self):
+        return len(self.cur_tr) > 0 and self.top_tr() is not None
+
+    def is_tracked(self):
+        return self.is_tracking() and self.top_tr() in self.db
+
+    def get_tracked(self):
+        return self[self.top_tr()]
+
+
 class Archive(x.Archive):
     """
     Boost symmetric serialization archive
@@ -221,6 +263,7 @@ class Archive(x.Archive):
         super().__init__(iobj, writing, **kwargs)
         self.version_db = VersionDatabase()
         self.version_settings = versions  # type: VersionSetting
+        self.registry = ObjectRegistry()
         self.tracker = helpers.Tracker()
 
     def type_in_db(self, tp, params):
@@ -247,6 +290,30 @@ class Archive(x.Archive):
             version = tw.get_current_version()
         return version
 
+    def is_tracking(self):
+        return self.registry.is_tracking()
+
+    def is_tracked(self):
+        return self.registry.is_tracked()
+
+    def get_tracked(self):
+        obj = self.registry.get_tracked()
+        self.pop_track()
+        return obj
+
+    def track_obj(self, obj, pred=True):
+        if not pred:
+            return obj
+        if self.is_tracking() and not self.is_tracked():
+            self.registry.set_obj(obj)
+        else:
+            self.pop_track()
+        return obj
+
+    def pop_track(self, pred=True):
+        if pred:
+            self.registry.pop_tr()
+
     async def get_version(self, tp, params):
         """
         Loads version from the stream / version database
@@ -258,19 +325,21 @@ class Archive(x.Archive):
         """
         tw = TypeWrapper(tp, params)
         if not tw.is_versioned():
+            # self.registry.set_tr()
             return TypeWrapper.ELEMENTARY_RES
 
         # If not in the DB, load from archive at current position
         if not self.version_db.is_versioned(tw):
             tr = await load_uvarint(self.iobj)
-            if tr != 0:
-                raise ValueError('Unsupported tracking for %s, tr: %s' % (tw, tr))
-
             ver = await load_uvarint(self.iobj)
-
             self.version_db.set_version(tw, tr, ver)
 
-        return self.version_db.get_version(tw)[1]
+        else:
+            tr, ver = self.version_db.get_version(tw)
+
+        obj_id = None if tr == 0 else await load_uvarint(self.iobj)
+        self.registry.set_tr(obj_id)
+        return ver
 
     async def set_version(self, tp, params, version=None, elem=None):
         """
@@ -282,6 +351,7 @@ class Archive(x.Archive):
         :param elem:
         :return:
         """
+        self.registry.set_tr(None)
         tw = TypeWrapper(tp, params)
         if not tw.is_versioned():
             return TypeWrapper.ELEMENTARY_RES
@@ -363,15 +433,21 @@ class Archive(x.Archive):
         elem_type = elem_type if elem_type else elem.__class__
         version = await self.version(elem_type, params, elem=elem)
 
+        if self.is_tracked():
+            return self.get_tracked()
+
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
+            self.pop_track()
             return await elem.boost_serialize(self, elem=elem, elem_type=elem_type, params=params, version=version)
 
         if self.writing:
+            self.pop_track()
             return await self.blob_dump(elem=elem, elem_type=elem_type, params=params)
 
         else:
-            return await self.blob_load(elem_type=elem_type, params=params, elem=elem)
+            obj = await self.blob_load(elem_type=elem_type, params=params, elem=elem)
+            return self.track_obj(obj)
 
     async def blob_dump(self, elem, elem_type, params=None):
         """
@@ -430,17 +506,25 @@ class Archive(x.Archive):
         raw_container = container_is_raw(container_type, params)
         elem_elementary = TypeWrapper.is_elementary_type(elem_type)
         is_versioned = not elem_elementary and not raw_container
+        version = None
 
-        version = await self.version(container_type, params, elem=container) if is_versioned else None
+        if is_versioned:
+            version = await self.version(container_type, params, elem=container)
+            if self.is_tracked():
+                return self.get_tracked()
+
         if hasattr(container_type, 'boost_serialize'):
             container = container_type() if container is None else container
+            self.pop_track(is_versioned)
             return await container.boost_serialize(self, elem=container, elem_type=container_type, params=params, version=version)
 
         # Container entry version + container
         if self.writing:
+            self.pop_track(is_versioned)
             return await self.container_dump(container, container_type, params)
         else:
-            return await self.container_load(container_type, params=params, container=container)
+            obj = await self.container_load(container_type, params=params, container=container)
+            return self.track_obj(obj, is_versioned)
 
     async def container_size(self, container_len=None, container_type=None, params=None):
         """
@@ -550,14 +634,20 @@ class Archive(x.Archive):
         :return:
         """
         version = await self.version(elem_type, params, elem=elem)
+        if self.is_tracked():
+            return self.get_tracked()
+
         if hasattr(elem_type, 'boost_serialize'):
             container = elem_type() if elem is None else elem
+            self.pop_track()
             return await container.boost_serialize(self, elem=elem, elem_type=elem_type, params=params, version=version)
 
         if self.writing:
+            self.pop_track()
             return await self.dump_tuple(elem, elem_type, params)
         else:
-            return await self.load_tuple(elem_type, params=params, elem=elem)
+            obj = await self.load_tuple(elem_type, params=params, elem=elem)
+            return self.track_obj(obj)
 
     async def dump_tuple(self, elem, elem_type, params=None):
         """
@@ -628,16 +718,22 @@ class Archive(x.Archive):
         elem_type = elem_type if elem_type else elem.__class__
         version = await self.version(elem_type, params, elem=elem)
 
+        if self.is_tracked():
+            return self.get_tracked()
+
         if hasattr(elem_type, 'boost_serialize'):
             elem = elem_type() if elem is None else elem
+            self.pop_track()
             return await elem.boost_serialize(self, elem=elem, elem_type=elem_type, params=params, version=version)
 
         if self.writing:
+            self.pop_track()
             return await self.dump_variant(elem=elem,
                                            elem_type=elem_type if elem_type else elem.__class__, params=params)
         else:
-            return await self.load_variant(elem_type=elem_type if elem_type else elem.__class__,
-                                           params=params, elem=elem)
+            obj = await self.load_variant(elem_type=elem_type if elem_type else elem.__class__,
+                                          params=params, elem=elem)
+            return self.track_obj(obj)
 
     async def dump_variant(self, elem, elem_type=None, params=None):
         """
@@ -735,14 +831,20 @@ class Archive(x.Archive):
         elem_type = msg_type if msg_type is not None else msg.__class__
         version = await self.version(elem_type, None, elem=msg) if use_version is None else use_version
 
+        if self.is_tracked():
+            return self.get_tracked()
+
         if hasattr(elem_type, 'boost_serialize'):
             msg = elem_type() if msg is None else msg
+            self.pop_track(use_version is None)
             return await msg.boost_serialize(self, version=version)
 
         if self.writing:
+            self.pop_track(use_version is None)
             return await self.dump_message(msg, msg_type=msg_type)
         else:
-            return await self.load_message(msg_type, msg=msg)
+            obj = await self.load_message(msg_type, msg=msg)
+            return self.track_obj(obj, use_version is None)
 
     async def message_field(self, msg, field, fvalue=None):
         """

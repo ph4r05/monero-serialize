@@ -241,6 +241,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         writer = x.MemoryReaderWriter()
         vers = xmrb.VersionSetting()
         vers.set(xmr.TxConstructionData, 2)
+        vers.set(xmr.TransferDetails, 9)
 
         ar2 = xmrb.Archive(writer, True, vers)
         await ar2.root()

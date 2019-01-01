@@ -773,7 +773,7 @@ class TxSourceEntry(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version):
-        if version < 1:
+        if version != 1:
             raise ValueError('TxSourceEntry v1 supported only')
         await self._msg_field(ar, 'outputs')
         await self._msg_field(ar, 'real_output')
@@ -798,7 +798,7 @@ class TxDestinationEntry(x.MessageType):
 
 
 class TransferDetails(x.MessageType):
-    BOOST_VERSION = 9
+    BOOST_VERSION = 10
     MFIELDS = [
         ('m_block_height', x.UInt64),
         ('m_tx', TransactionPrefix),
@@ -812,6 +812,7 @@ class TransferDetails(x.MessageType):
         ('m_amount', x.UInt64),
         ('m_rct', x.BoolType),
         ('m_key_image_known', x.BoolType),
+        ('m_key_image_requested', x.BoolType),
         ('m_pk_index', x.SizeT),
         ('m_subaddr_index', SubaddressIndex),
         ('m_key_image_partial', x.BoolType),
@@ -820,8 +821,8 @@ class TransferDetails(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version):
-        if version < 9:
-            raise ValueError('TransferDetails v9 supported only')
+        if version < 9 or version > self.BOOST_VERSION:
+            raise ValueError('TransferDetails unsupported version: %s' % version)
         await self._msg_field(ar, 'm_block_height')
         await self._msg_field(ar, 'm_global_output_index')
         await self._msg_field(ar, 'm_internal_output_index')
@@ -839,6 +840,11 @@ class TransferDetails(x.MessageType):
         await self._msg_field(ar, 'm_multisig_info')
         await self._msg_field(ar, 'm_multisig_k')
         await self._msg_field(ar, 'm_key_image_partial')
+        if version < 10:
+            self.m_key_image_requested = 0
+            return self
+
+        await self._msg_field(ar, 'm_key_image_requested')
         return self
 
 
@@ -859,8 +865,8 @@ class TxConstructionData(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version):
-        if version < 2:
-            raise ValueError('TXConstruction v2 supported only')
+        if version < 2 or version > self.BOOST_VERSION:
+            raise ValueError('TXConstruction unsupported version: %s' % version)
         await self._msg_field(ar, 'sources')
         await self._msg_field(ar, 'change_dts')
         await self._msg_field(ar, 'splitted_dsts')
@@ -894,7 +900,7 @@ class PendingTransaction(x.MessageType):
     ]
 
     async def boost_serialize(self, ar, version):
-        if version < 3:
+        if version != 3:
             raise ValueError('Pending transaction v3+ supported only')
         await self._msg_field(ar, idx=0)
         await self._msg_field(ar, idx=1)
