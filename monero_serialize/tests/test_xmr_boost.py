@@ -254,6 +254,32 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         await ar2.root()
         await ar2.message(msg)
 
+    async def test_tx_unsigned_with_tracking(self):
+        unsigned_tx_c = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_unsigned_02.txt'))
+        unsigned_tx = binascii.unhexlify(unsigned_tx_c)
+
+        reader = x.MemoryReaderWriter(bytearray(unsigned_tx))
+        ar = xmrb.Archive(reader, False)
+
+        msg = xmr.UnsignedTxSet()
+        await ar.root()
+        await ar.message(msg)
+
+        writer = x.MemoryReaderWriter()
+        vers = xmrb.VersionSetting()
+        vers.set(xmr.TxConstructionData, 2)
+        vers.set(xmr.TransferDetails, 9)
+
+        ar2 = xmrb.Archive(writer, True, vers)
+        await ar2.root()
+        await ar2.message(msg)
+
+        for tx in msg.txes:
+            tx.use_bulletproofs = False
+        ar2 = xmrb.Archive(writer, True, vers)
+        await ar2.root()
+        await ar2.message(msg)
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

@@ -21,8 +21,32 @@
 - - object address tracking, track_never = 0
 - - version defined by BOOST_CLASS_VERSION() macro
 - (tracking num / 1Bvar, version 4B var), obj
-- (tr, v), collection_size, element_version, (obj_tr, obj_v), obj1, obj2, …
-- (tr, v), which, (tr, v), val
+- (tr, v), collection_size, element_version, (obj_tr, obj_v) [, obj_id if tracking], obj1, obj2, …
+- (tr, v), which, (tr, v) [, obj_id if tracking], val
+
+https://www.boost.org/doc/libs/1_66_0/libs/serialization/src/basic_archive.cpp :
+//////////////////////////////////////////////////////////////////////
+//
+//  objects are stored as
+//
+//      class_id*   // -1 for a null pointer
+//      if a new class id
+//      [
+//          exported key - class name*
+//          tracking level - always/never
+//          class version
+//      ]
+//
+//      if tracking
+//      [
+//          object_id
+//      ]
+//          
+//      [   // if a new object id
+//          data...
+//      ]
+//
+//  * required only for pointers - optional for objects
 
 
 ## XMR example
