@@ -24,7 +24,8 @@
 - (tr, v), collection_size, element_version, (obj_tr, obj_v) [, obj_id if tracking], obj1, obj2, …
 - (tr, v), which, (tr, v) [, obj_id if tracking], val
 
-https://www.boost.org/doc/libs/1_66_0/libs/serialization/src/basic_archive.cpp :
+https://www.boost.org/doc/libs/1_66_0/libs/serialization/src/basic_archive.cpp
+```
 //////////////////////////////////////////////////////////////////////
 //
 //  objects are stored as
@@ -47,7 +48,7 @@ https://www.boost.org/doc/libs/1_66_0/libs/serialization/src/basic_archive.cpp :
 //      ]
 //
 //  * required only for pointers - optional for objects
-
+```
 
 ## XMR example
 
