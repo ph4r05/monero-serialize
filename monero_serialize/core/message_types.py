@@ -123,17 +123,31 @@ class MessageType(XmrType):
     def f_specs(cls):
         return cls.MFIELDS
 
-    def _field(self, fname=None, idx=None):
+    def _field(self, fname=None, idx=None, specs=None):
         fld = None
-        specs = self.f_specs()
+        specs = self.f_specs() if specs is None else specs
         if fname is not None:
             fld = [x for x in specs if x[0] == fname][0]
         elif idx is not None:
             fld = specs[idx]
         return fld
 
+    def _field_idx(self, fname, specs=None):
+        specs = self.f_specs() if specs is None else specs
+        return [i for i, x in enumerate(specs) if x[0] == fname][0]
+
+    def _rm_field(self, specs, fname=None, idx=None, **kwargs):
+        if fname is not None:
+            idx = self._field_idx(fname, specs)
+        del specs[idx]
+        return specs
+
     async def _msg_field(self, ar, fname=None, idx=None, **kwargs):
         return await ar.message_field(self, self._field(fname=fname, idx=idx), **kwargs)
+
+    async def _msg_fields(self, ar, fields, **kwargs):
+        for fl in fields:
+            await ar.message_field(self, fl)
 
 
 def container_elem_type(container_type, params):

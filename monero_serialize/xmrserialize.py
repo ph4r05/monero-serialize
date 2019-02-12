@@ -44,6 +44,7 @@ from .core.erefs import has_elem, set_elem, get_elem, ElemRefArr, ElemRefObj, er
 from .core.int_serialize import *
 from .core.message_types import *
 from .core.obj_helper import *
+from .core.versioning import TypeWrapper, VersionDatabase, VersionSetting
 
 
 logger = logging.getLogger(__name__)
@@ -74,10 +75,32 @@ class Archive(object):
     as we cannot directly modify given element as a parameter (value-passing) as its performed
     in C++ code. see: eref(), get_elem(), set_elem()
     """
-    def __init__(self, iobj, writing=True, **kwargs):
+    def __init__(self, iobj, writing=True, versions=None, **kwargs):
         self.writing = writing
         self.iobj = iobj
         self.tracker = helpers.Tracker()
+
+        # Using boost versioning also for BC format.
+        self.version_settings = versions  # type: VersionSetting
+
+    def _cur_version(self, tw, elem=None):
+        has_version = False
+        if elem:
+            relem = get_elem(elem)
+            if relem and hasattr(relem, 'BOOST_VERSION_CUR'):
+                version = getattr(relem, 'BOOST_VERSION_CUR')
+                has_version = True
+
+        if not has_version and self.version_settings and tw in self.version_settings:
+            version = self.version_settings[tw]
+
+        else:
+            version = tw.get_current_version()
+        return version
+
+    async def version(self, tp, params, version=None, elem=None):
+        tw = TypeWrapper(tp, params)
+        return self._cur_version(tw, elem)
 
     async def tag(self, tag):
         """
@@ -302,25 +325,26 @@ class Archive(object):
                 wrapped=wrapped,
             )
 
-    async def message(self, msg, msg_type=None):
+    async def message(self, msg, msg_type=None, use_version=None):
         """
         Loads/dumps message
         :param msg:
         :param msg_type:
+        :param use_version:
         :return:
         """
         elem_type = msg_type if msg_type is not None else msg.__class__
         msg = elem_type() if msg is None else msg
         if hasattr(elem_type, "serialize_archive"):
-            return await msg.serialize_archive(self)
+            version = await self.version(elem_type, None, elem=msg) if use_version is None else use_version
+            return await msg.serialize_archive(self, version=version)
 
         mtype = msg.__class__ if msg_type is None else msg_type
         fields = mtype.f_specs()
         if hasattr(mtype, "serialize_archive"):
             raise ValueError("Cannot directly load, has to use archive with %s" % mtype)
 
-        for field in fields:
-            await self.message_field(msg, field)
+        await self.message_fields(msg, fields)
         return msg
 
     async def message_field(self, msg, field, fvalue=None):

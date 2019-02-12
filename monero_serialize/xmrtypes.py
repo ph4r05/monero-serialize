@@ -494,7 +494,7 @@ class Signature(x.MessageType):
         ('r', ECKey),
     ]
 
-    async def serialize_archive(self, ar):
+    async def serialize_archive(self, ar, version=None):
         ar.field(eref(self, 'c'), ECKey)
         ar.field(eref(self, 'r'), ECKey)
         return self
@@ -526,7 +526,7 @@ class Transaction(TransactionPrefix):
         ('rct_signatures', RctSig),
     ]
 
-    async def serialize_archive(self, ar):
+    async def serialize_archive(self, ar, version=None):
         """
         Serialize the transaction
         :param ar:
@@ -672,7 +672,7 @@ class TxExtraPadding(x.MessageType):
         ('size', x.SizeT),
     ]
 
-    async def serialize_archive(self, ar):
+    async def serialize_archive(self, ar, version=None):
         if ar.writing:
             if self.size > self.TX_EXTRA_PADDING_MAX_COUNT:
                 raise ValueError('Padding too big')
@@ -847,6 +847,17 @@ class TransferDetails(x.MessageType):
         await self._msg_field(ar, 'm_key_image_requested')
         return self
 
+    async def serialize_archive(self, ar, version=None):
+        if version is None:
+            version = self.BOOST_VERSION
+
+        fields = list(self.f_specs())
+        if version < 10:
+            self._rm_field(fields, 'm_key_image_requested')
+
+        await self._msg_fields(ar, fields)
+        return self
+
 
 class TxConstructionData(x.MessageType):
     BOOST_VERSION = 3
@@ -858,7 +869,7 @@ class TxConstructionData(x.MessageType):
         ('extra', x.ContainerType, x.UInt8),
         ('unlock_time', x.UInt64),
         ('use_rct', x.BoolType),
-        # ('use_bulletproofs', x.BoolType),
+        ('use_bulletproofs', x.BoolType),
         ('dests', x.ContainerType, TxDestinationEntry),
         ('subaddr_account', x.UInt32),
         ('subaddr_indices', x.ContainerType, x.UVarintType),  # original: x.UInt32
@@ -879,6 +890,17 @@ class TxConstructionData(x.MessageType):
         await self._msg_field(ar, 'selected_transfers')
         if version >= 3:
             await ar.message_field(self, ('use_bulletproofs', x.BoolType))
+        return self
+
+    async def serialize_archive(self, ar, version=None):
+        if version is None:
+            version = self.BOOST_VERSION
+
+        fields = list(self.f_specs())
+        if version < 3:
+            self._rm_field(fields, 'use_bulletproofs')
+
+        await self._msg_fields(ar, fields)
         return self
 
 

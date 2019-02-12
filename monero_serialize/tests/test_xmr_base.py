@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import random
+import binascii
 import base64
-import unittest
+import os
 import pkg_resources
+import unittest
 
 import asyncio
 import aiounittest
 
 from .test_data import XmrTestData
-from .. import xmrserialize as x
 from .. import xmrserialize as x
 from .. import xmrtypes as xmr
 from ..core.readwriter import MemoryReaderWriter
@@ -275,6 +275,38 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.rct_signatures.p.rangeSigs[1].Ci[0][0], 0xeb)
         self.assertEqual(msg.rct_signatures.p.rangeSigs[1].Ci[63][0], 0xfc)
         self.assertEqual(msg.rct_signatures.p.rangeSigs[1].asig.ee[0], 0xe7)
+
+    async def test_tx_unsigned(self):
+        """
+        Unsigned transaction, forzen at certain version
+        :return:
+        """
+        unsigned_tx = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_unsigned_01_bc.txt'))
+
+        vers = x.VersionSetting()
+        vers.set(xmr.TxConstructionData, 2)
+        vers.set(xmr.TransferDetails, 9)
+
+        reader = x.MemoryReaderWriter(bytearray(unsigned_tx))
+        ar = x.Archive(reader, False, vers)
+
+        msg = xmr.UnsignedTxSet()
+        await ar.root()
+        await ar.message(msg)
+        self.assertEqual(len(msg.txes), 1)
+        self.assertEqual(len(msg.transfers), 36)
+        self.assertEqual(msg.transfers[35].m_block_height, 6)
+        self.assertEqual(msg.transfers[35].m_global_output_index, 5)
+
+        writer = x.MemoryReaderWriter()
+        ar2 = x.Archive(writer, True, vers)
+        await ar2.root()
+        await ar2.message(msg)
+        self.assertEqual(unsigned_tx, bytearray(writer.get_buffer()))
+
+        ar2 = x.Archive(writer, True, vers)
+        await ar2.root()
+        await ar2.message(msg)
 
 
 if __name__ == "__main__":
