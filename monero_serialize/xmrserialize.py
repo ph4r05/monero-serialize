@@ -95,7 +95,7 @@ class Archive(object):
             version = self.version_settings[tw]
 
         else:
-            version = tw.get_current_version()
+            version = tw.get_current_version('bc')
         return version
 
     async def version(self, tp, params, version=None, elem=None):

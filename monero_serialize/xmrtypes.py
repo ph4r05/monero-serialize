@@ -8,6 +8,7 @@ XMR types
 from . import xmrserialize as x
 from . import xmrrpc
 from .xmrserialize import eref
+from .core import versioning
 
 
 #
@@ -20,6 +21,13 @@ class Hash(x.BlobType):
     DATA_ATTR = 'data'
     FIX_SIZE = 1
     SIZE = 32
+
+
+class Hash8(x.BlobType):
+    __slots__ = ['data']
+    DATA_ATTR = 'data'
+    FIX_SIZE = 1
+    SIZE = 8
 
 
 class ECKey(x.BlobType):
@@ -337,7 +345,13 @@ class RctSigBase(x.MessageType):
             raise ValueError('EcdhInfo size mismatch')
 
         for i in range(outputs):
-            await ar.field(eref(self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
+            if self.type == RctType.Bulletproof2:
+                ceref = eref(self.ecdhInfo[i], 'amount')
+                await ar.field(ceref, Hash8)
+                if not ar.writing:
+                    x.set_elem(ceref, 24*[0] + x.get_elem(ceref)[-8:])
+            else:
+                await ar.field(eref(self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
         await ar.end_array()
 
         await ar.tag('outPk')
@@ -365,8 +379,14 @@ class RctType(object):
     Full = 1
     Simple = 2
     Bulletproof = 3
-    FullBulletproof = 3     # pre v9
-    SimpleBulletproof = 4   # pre v9
+    Bulletproof2 = 4
+
+    FullBulletproof = 3     # pre v9, deprecated
+    SimpleBulletproof = 4   # pre v9, deprecated
+
+
+def is_rct_bp(rct_type):
+    return rct_type in (RctType.Bulletproof, RctType.Bulletproof2)
 
 
 class RctSigPrunable(x.MessageType):
@@ -392,17 +412,22 @@ class RctSigPrunable(x.MessageType):
         if type == RctType.Null:
             return True
 
-        if type != RctType.Full and type != RctType.FullBulletproof and \
-                type != RctType.Simple and type != RctType.SimpleBulletproof:
+        if type != RctType.Full and type != RctType.Bulletproof and \
+                type != RctType.Simple and type != RctType.Bulletproof2:
             raise ValueError('Unknown type')
 
-        if type == RctType.SimpleBulletproof or type == RctType.FullBulletproof:
+        if is_rct_bp(type):
             await ar.tag('bp')
             await ar.begin_array()
             bps = [0]
             if ar.writing:
                 bps[0] = len(self.bulletproofs)
-            await ar.field(elem=eref(bps, 0), elem_type=x.UVarintType)
+
+            if type == RctType.Bulletproof2:
+                await ar.field(elem=eref(bps, 0), elem_type=x.UVarintType)
+            else:
+                await ar.field(elem=eref(bps, 0), elem_type=x.UInt32)
+
             await ar.prepare_container(bps[0], eref(self, 'bulletproofs'), elem_type=Bulletproof)
 
             for i in range(bps[0]):
@@ -460,7 +485,7 @@ class RctSigPrunable(x.MessageType):
             await ar.end_object()
         await ar.end_array()
 
-        if type in [RctType.FullBulletproof, RctType.SimpleBulletproof]:
+        if type in (RctType.Bulletproof, RctType.Bulletproof2):
             await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
@@ -788,13 +813,42 @@ class TxSourceEntry(x.MessageType):
 
 
 class TxDestinationEntry(x.MessageType):
-    __slots__ = ['amount', 'addr', 'is_subaddress']
-    BOOST_VERSION = 1
+    __slots__ = ['amount', 'addr', 'is_subaddress', 'original', 'is_integrated']
+    BC_VERSION = 1  # default blockchain version
+    BOOST_VERSION = 2
     MFIELDS = [
+        ('original', x.UnicodeType),  # original: UInt64
         ('amount', x.UVarintType),  # original: UInt64
         ('addr', AccountPublicAddress),
         ('is_subaddress', x.BoolType),
+        ('is_integrated', x.BoolType),
     ]
+
+    async def boost_serialize(self, ar, version):
+        if version < 1 or version > self.BOOST_VERSION:
+            raise ValueError('Unsupported version: %s' % version)
+        await self._msg_field(ar, 'amount')
+        await self._msg_field(ar, 'addr')
+        await self._msg_field(ar, 'is_subaddress')
+        if version < 2:
+            self.is_integrated = 0
+            return self
+
+        await self._msg_field(ar, 'original')
+        await self._msg_field(ar, 'is_integrated')
+        return self
+
+    async def serialize_archive(self, ar, version=None):
+        if version is None:
+            version = self.BOOST_VERSION
+
+        fields = list(self.f_specs())
+        if version < 2:
+            self._rm_field(fields, 'original')
+            self._rm_field(fields, 'is_integrated')
+
+        await self._msg_fields(ar, fields)
+        return self
 
 
 class TransferDetails(x.MessageType):
@@ -1009,4 +1063,24 @@ class WalletKeyData(x.MessageType):
     ]
 
 
+def hf_versions(hf=9):
+    vers = {}
+    if hf <= 9:
+        vers[TxDestinationEntry] = 1
+        vers[TxConstructionData] = 2
+        vers[TransferDetails] = 9
+
+    elif hf >= 10:
+        vers[TxDestinationEntry] = 2
+        vers[TxConstructionData] = 3
+        vers[TransferDetails] = 10
+
+    vers[MultisigLR] = 0
+    vers[MultisigInfo] = 1
+    vers[TxSourceEntry] = 1
+    vers[PendingTransaction] = 3
+    vers[UnsignedTxSet] = 0
+    vers[SignedTxSet] = 0
+    vers[MultisigTxSet] = 0
+    return versioning.VersionSetting(vers)
 

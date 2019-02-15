@@ -78,7 +78,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         data_hex = b'011673657269616c697a6174696f6e3a3a6172636869766500000001010144000000000120cc000000000000000000000000000000000000000000000000000000000000ee0120aa000000000000000000000000000000000000000000000000000000000000dd01010122012011000000000000000000000000000000000000000000000000000000000000ee012033000000000000000000000000000000000000000000000000000000000000dd00'
         data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
-        ar = xmrb.Archive(reader, False)
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
 
         msg = xmr.TxDestinationEntry()
         await ar.root_message(msg)
@@ -97,7 +97,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg2.addr.m_view_public_key, bytearray(b'\x33' + (b'\x00' * 30) + b'\xdd'))
 
         writer = x.MemoryReaderWriter()
-        ar2 = xmrb.Archive(writer, True)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
         await ar2.message(msg2)
@@ -111,7 +111,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         data_hex = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_prefix_01.txt'))
         data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
-        ar = xmrb.Archive(reader, False)
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
 
         msg = xmr.TransactionPrefix()
         await ar.root()
@@ -133,7 +133,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.extra, [2, 9, 1, 47, 52, 19, 57, 144, 50, 174, 234, 1, 115, 225, 189, 191, 247, 206, 185, 246, 32, 137, 241, 205, 17, 99, 170, 72, 226, 34, 108, 233, 7, 125, 90, 190, 17, 206, 149, 202, 216, 243, 78, 13])
 
         writer = x.MemoryReaderWriter()
-        ar2 = xmrb.Archive(writer, True)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
         self.assertEqual(data_bin, bytearray(writer.get_buffer()))
@@ -177,7 +177,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         data_hex = pkg_resources.resource_string(__name__, os.path.join('data', 'tx_metadata_01.txt'))
         data_bin = binascii.unhexlify(data_hex)
         reader = x.MemoryReaderWriter(bytearray(data_bin))
-        ar = xmrb.Archive(reader, False)
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
 
         msg = xmr.PendingTransaction()
         await ar.root()
@@ -204,18 +204,15 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         self.assertEqual(msg.construction_data.splitted_dsts[1].amount, 99972803971000)
         self.assertEqual(len(msg.construction_data.subaddr_indices), 1)
 
-        vers = xmrb.VersionSetting()
-        vers.set(xmr.TxConstructionData, 2)
-
         writer = x.MemoryReaderWriter()
-        ar2 = xmrb.Archive(writer, True, vers)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
         self.assertEqual(data_bin, bytearray(writer.get_buffer()))
 
         msg.construction_data.use_bulletproofs = False
         writer = x.MemoryReaderWriter()
-        ar2 = xmrb.Archive(writer, True)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
 
@@ -224,7 +221,7 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         unsigned_tx = binascii.unhexlify(unsigned_tx_c)
 
         reader = x.MemoryReaderWriter(bytearray(unsigned_tx))
-        ar = xmrb.Archive(reader, False)
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
 
         msg = xmr.UnsignedTxSet()
         await ar.root()
@@ -239,18 +236,14 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
                          bytearray([0x5c,0x2f,0x4b,0x93,0x26,0xd1,0xa3,0xd8,0x17,0x0d,0x1e,0x5b,0x69,0xb5,0x19,0x2c,0xba,0x9d,0x7c,0x48,0xf2,0xc7,0xc3,0xcf,0xdd,0x9d,0x1b,0xbd,0x4f,0x96,0xeb,0x00]))
 
         writer = x.MemoryReaderWriter()
-        vers = xmrb.VersionSetting()
-        vers.set(xmr.TxConstructionData, 2)
-        vers.set(xmr.TransferDetails, 9)
-
-        ar2 = xmrb.Archive(writer, True, vers)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
         self.assertEqual(unsigned_tx, bytearray(writer.get_buffer()))
 
         for tx in msg.txes:
             tx.use_bulletproofs = False
-        ar2 = xmrb.Archive(writer, True, vers)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
 
@@ -259,24 +252,20 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         unsigned_tx = binascii.unhexlify(unsigned_tx_c)
 
         reader = x.MemoryReaderWriter(bytearray(unsigned_tx))
-        ar = xmrb.Archive(reader, False)
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
 
         msg = xmr.UnsignedTxSet()
         await ar.root()
         await ar.message(msg)
 
         writer = x.MemoryReaderWriter()
-        vers = xmrb.VersionSetting()
-        vers.set(xmr.TxConstructionData, 2)
-        vers.set(xmr.TransferDetails, 9)
-
-        ar2 = xmrb.Archive(writer, True, vers)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
 
         for tx in msg.txes:
             tx.use_bulletproofs = False
-        ar2 = xmrb.Archive(writer, True, vers)
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
 

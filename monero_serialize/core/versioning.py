@@ -50,7 +50,13 @@ class TypeWrapper(object):
         else:
             return True
 
-    def get_current_version(self):
+    def get_current_version(self, prefix=None):
+        if prefix == 'bc':
+            if hasattr(self.tp, 'bc_version'):
+                return self.tp.bc_version()
+            if hasattr(self.tp, 'BC_VERSION'):
+                return self.tp.BC_VERSION
+
         if hasattr(self.tp, 'boost_version'):
             return self.tp.boost_version()
         if hasattr(self.tp, 'BOOST_VERSION'):
@@ -95,10 +101,13 @@ class VersionDatabase(object):
 
 
 class VersionSetting(object):
-    def __init__(self):
+    def __init__(self, db_init=None):
         self.db = {}  # type: dict[type -> int]
         self.current_idx = 0
         self.iter_keys = None
+
+        if db_init:
+            self.set_all(db_init)
 
     def wrap(self, inp, params=None):
         if isinstance(inp, TypeWrapper):
@@ -107,12 +116,21 @@ class VersionSetting(object):
             return TypeWrapper(inp[0], params[1])
         return TypeWrapper(inp, params)
 
+    def set_all(self, db):
+        for k in db:
+            self.set(k, db[k])
+        return self
+
     def set(self, twrap, version, params=None):
         twrap = self.wrap(twrap, params)
         if twrap in self.db:
             return self
         self.db[twrap] = version
         return self
+
+    def delete(self, twrap, params=None):
+        twrap = self.wrap(twrap, params)
+        del self.db[twrap]
 
     def __getitem__(self, item):
         item = self.wrap(item)
