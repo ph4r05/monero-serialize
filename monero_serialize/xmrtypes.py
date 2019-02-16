@@ -346,10 +346,11 @@ class RctSigBase(x.MessageType):
 
         for i in range(outputs):
             if self.type == RctType.Bulletproof2:
-                ceref = eref(self.ecdhInfo[i], 'amount')
-                await ar.field(ceref, Hash8)
+                am8 = [self.ecdhInfo[i].amount[0:8] if ar.writing else bytearray(0)]
+                await ar.field(eref(am8, 0), Hash8)
                 if not ar.writing:
-                    x.set_elem(ceref, 24*[0] + x.get_elem(ceref)[-8:])
+                    x.set_elem(eref(self.ecdhInfo[i], 'amount'), am8[0] + bytearray(24))
+                    x.set_elem(eref(self.ecdhInfo[i], 'mask'), bytearray(32))
             else:
                 await ar.field(eref(self.ecdhInfo, i), EcdhInfo.ELEM_TYPE)
         await ar.end_array()
