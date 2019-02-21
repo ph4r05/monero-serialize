@@ -304,6 +304,55 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         await ar2.root()
         await ar2.message(msg)
 
+    async def test_versions(self):
+        dest = xmr.TxDestinationEntry()
+        dest.original = "test"
+        dest.amount = 1234
+        dest.addr = xmr.AccountPublicAddress(m_spend_public_key=bytearray(32), m_view_public_key=bytearray(32))
+        dest.is_integrated = True
+        dest.is_subaddress = True
+
+        writer = x.MemoryReaderWriter()
+        ar2 = x.Archive(writer, True, xmr.hf_versions(10))
+        await ar2.root()
+        await ar2.message(dest)
+
+        reader = x.MemoryReaderWriter(writer.get_buffer())
+        ar = x.Archive(reader, False, xmr.hf_versions(10))
+        msg = xmr.TxDestinationEntry()
+        await ar.root()
+        await ar.message(msg)
+        self.assertTrue(reader.is_empty())
+        self.assertEqual(msg, dest)
+
+        # Reading as v9 causes problems as CN does not have versioning in the format
+        # thus parser cannot determine on its own
+        msg = xmr.TxDestinationEntry()
+        with self.assertRaises(Exception):
+            reader = x.MemoryReaderWriter(writer.get_buffer())
+            ar = x.Archive(reader, False, xmr.hf_versions(9))
+            await ar.root()
+            await ar.message(msg)
+            if not reader.is_empty():
+                raise ValueError('Buffer not read completelly')  # expected in this case
+        self.assertNotEqual(msg, dest)
+
+        # Serialize as v9
+        writer2 = x.MemoryReaderWriter()
+        ar2 = x.Archive(writer2, True, xmr.hf_versions(9))
+        del (dest.original, dest.is_integrated)
+        await ar2.root()
+        await ar2.message(dest)
+
+        reader = x.MemoryReaderWriter(writer2.get_buffer())
+        ar = x.Archive(reader, False, xmr.hf_versions(9))
+        msg = xmr.TxDestinationEntry()
+        await ar.root()
+        await ar.message(msg)
+        self.assertTrue(reader.is_empty())
+        self.assertEqual(msg, dest)
+        self.assertNotEqual(len(writer.get_buffer()), len(writer2.get_buffer()))
+
 
 if __name__ == "__main__":
     unittest.main()  # pragma: no cover

@@ -241,8 +241,6 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         await ar2.message(msg)
         self.assertEqual(unsigned_tx, bytearray(writer.get_buffer()))
 
-        for tx in msg.txes:
-            tx.use_bulletproofs = False
         ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
@@ -263,11 +261,55 @@ class XmrBoostTest(aiounittest.AsyncTestCase):
         await ar2.root()
         await ar2.message(msg)
 
-        for tx in msg.txes:
-            tx.use_bulletproofs = False
         ar2 = xmrb.Archive(writer, True, xmr.hf_versions(9))
         await ar2.root()
         await ar2.message(msg)
+
+    async def test_versions(self):
+        dest = xmr.TxDestinationEntry()
+        dest.original = "test"
+        dest.amount = 1234
+        dest.addr = xmr.AccountPublicAddress(m_spend_public_key=bytearray(32), m_view_public_key=bytearray(32))
+        dest.is_integrated = True
+        dest.is_subaddress = True
+
+        writer = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer, True, xmr.hf_versions(10))
+        await ar2.root()
+        await ar2.message(dest)
+
+        reader = x.MemoryReaderWriter(writer.get_buffer())
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(10))
+        msg = xmr.TxDestinationEntry()
+        await ar.root()
+        await ar.message(msg)
+        self.assertTrue(reader.is_empty())
+        self.assertEqual(msg, dest)
+
+        # Message read as v2 as it was serialized in this way
+        reader = x.MemoryReaderWriter(writer.get_buffer())
+        ar = xmrb.Archive(reader, False, xmr.hf_versions(9))
+        msg = xmr.TxDestinationEntry()
+        await ar.root()
+        await ar.message(msg)
+        self.assertTrue(reader.is_empty())
+        self.assertEqual(msg, dest)
+
+        # Serialize as v9
+        writer2 = x.MemoryReaderWriter()
+        ar2 = xmrb.Archive(writer2, True, xmr.hf_versions(9))
+        del (dest.original, dest.is_integrated)
+        await ar2.root()
+        await ar2.message(dest)
+
+        reader = x.MemoryReaderWriter(writer2.get_buffer())
+        ar = xmrb.Archive(reader, False)
+        msg = xmr.TxDestinationEntry()
+        await ar.root()
+        await ar.message(msg)
+        self.assertTrue(reader.is_empty())
+        self.assertEqual(msg, dest)
+        self.assertNotEqual(len(writer.get_buffer()), len(writer2.get_buffer()))
 
 
 if __name__ == "__main__":
