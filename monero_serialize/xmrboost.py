@@ -327,7 +327,7 @@ class Archive(x.Archive):
         data = getattr(elem, x.BlobType.DATA_ATTR) if elem_is_blob else elem
 
         if len(data) != elem_params.SIZE:
-            raise ValueError('Fixed size blob has not defined size: %s' % elem_params.SIZE)
+            raise ValueError('Fixed size blob has not defined size: %s, path %s' % (elem_params.SIZE, self.tracker))
 
         await dump_uvarint(self.iobj, len(elem))
         await self.iobj.awrite(data)
@@ -646,7 +646,7 @@ class Archive(x.Archive):
                 elem.set_variant(field[0], fvalue)
             return elem if is_wrapped else fvalue
 
-        raise ValueError('Unknown tag: %s' % tag)
+        raise ValueError('Unknown tag: %s, path: %s' % (tag, self.tracker))
 
     async def root(self):
         """

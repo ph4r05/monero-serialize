@@ -48,4 +48,11 @@ class Tracker(object):
 class ArchiveException(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
+        self.subexc = None if len(args) == 0 else args[0]
         self.tracker = kwargs.get('tracker', None)
+
+    def __str__(self):
+        if self.subexc and isinstance(self.subexc, ArchiveException):
+            return super().__str__()
+
+        return '%s, path: %s' % (super().__str__(), self.tracker)

@@ -852,8 +852,14 @@ class TxDestinationEntry(x.MessageType):
         return self
 
 
+class TransferDetailsUse(x.TupleType):
+    MFIELDS = [
+        x.SizeT, Hash
+    ]
+
+
 class TransferDetails(x.MessageType):
-    BOOST_VERSION = 10
+    BOOST_VERSION = 11
     MFIELDS = [
         ('m_block_height', x.UInt64),
         ('m_tx', TransactionPrefix),
@@ -873,6 +879,7 @@ class TransferDetails(x.MessageType):
         ('m_key_image_partial', x.BoolType),
         ('m_multisig_k', x.ContainerType, ECKey),
         ('m_multisig_info', x.ContainerType, MultisigInfo),
+        ('m_uses', x.ContainerType, TransferDetailsUse),
     ]
 
     async def boost_serialize(self, ar, version):
@@ -898,8 +905,11 @@ class TransferDetails(x.MessageType):
         if version < 10:
             self.m_key_image_requested = 0
             return self
+        if version < 11:
+            self.m_uses = []
 
         await self._msg_field(ar, 'm_key_image_requested')
+        await self._msg_field(ar, 'm_uses')
         return self
 
     async def serialize_archive(self, ar, version=None):
@@ -909,13 +919,22 @@ class TransferDetails(x.MessageType):
         fields = list(self.f_specs())
         if version < 10:
             self._rm_field(fields, 'm_key_image_requested')
+        if version < 11:
+            self._rm_field(fields, 'm_uses')
 
         await self._msg_fields(ar, fields)
         return self
 
 
+class RCTConfig(x.MessageType):
+    MFIELDS = [
+        ('range_proof_type', x.UVarintType),
+        ('bp_version', x.UVarintType),
+    ]
+
+
 class TxConstructionData(x.MessageType):
-    BOOST_VERSION = 3
+    BOOST_VERSION = 4
     MFIELDS = [
         ('sources', x.ContainerType, TxSourceEntry),
         ('change_dts', TxDestinationEntry),
@@ -925,6 +944,7 @@ class TxConstructionData(x.MessageType):
         ('unlock_time', x.UInt64),
         ('use_rct', x.BoolType),
         ('use_bulletproofs', x.BoolType),
+        ('rct_config', RCTConfig),
         ('dests', x.ContainerType, TxDestinationEntry),
         ('subaddr_account', x.UInt32),
         ('subaddr_indices', x.ContainerType, x.UVarintType),  # original: x.UInt32
@@ -945,17 +965,27 @@ class TxConstructionData(x.MessageType):
         await self._msg_field(ar, 'selected_transfers')
         if version >= 3:
             await ar.message_field(self, ('use_bulletproofs', x.BoolType))
-        return self
+        return self.postprocess(version)
 
     async def serialize_archive(self, ar, version=None):
         if version is None:
             version = self.BOOST_VERSION
 
         fields = list(self.f_specs())
-        if version < 3:
+
+        if version == 4 or version < 3:
             self._rm_field(fields, 'use_bulletproofs')
+        if version < 4:
+            self._rm_field(fields, 'rct_config')
 
         await self._msg_fields(ar, fields)
+        return self.postprocess(version)
+
+    def postprocess(self, version):
+        if version == 3:
+            self.rct_config = RCTConfig(range_proof_type=1 if self.use_bulletproofs else 0, bp_version=0)
+        if version == 4:
+            self.use_bulletproofs = self.rct_config.range_proof_type != 0
         return self
 
 
@@ -1070,11 +1100,19 @@ def hf_versions(hf=9):
         vers[TxDestinationEntry] = 1
         vers[TxConstructionData] = 2
         vers[TransferDetails] = 9
+        vers[SignedTxSet] = 0
 
     elif hf >= 10:
         vers[TxDestinationEntry] = 2
         vers[TxConstructionData] = 3
         vers[TransferDetails] = 10
+        vers[SignedTxSet] = 0
+        vers[TxConstructionData] = 3
+
+    elif hf >= 11:
+        vers[TransferDetails] = 11
+        vers[SignedTxSet] = 0  # TODO: impl 1, unordered_map
+        vers[TxConstructionData] = 4
 
     vers[MultisigLR] = 0
     vers[MultisigInfo] = 1
