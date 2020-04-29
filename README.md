@@ -177,10 +177,10 @@ The format is not versioned, i.e., serialization format does not store explicit 
 - 0 - 0x7f encoded in 1 byte, 0x80 - 0x3fff encoded in 2 bytes, ...
 
 Example:
-- 0x0f -> 0f
-- 0x1000 -> 8020
-- 0xffff -> ffff03
-- 0xffffff -> ffffff07
+- `0x0f     -> 0f`
+- `0x1000   -> 8020`
+- `0xffff   -> ffff03`
+- `0xffffff -> ffffff07`
 
 ### UInt
 
@@ -188,9 +188,9 @@ Example:
 
 Example:
 
-- 0x0f Width 4 = 0f000000
-- 0x1000 Width 4 = 001000
-- 0xffffff Width 4 = ffffff00
+- `0x0f     Width 4 = 0f000000`
+- `0x1000   Width 4 = 001000`
+- `0xffffff Width 4 = ffffff00`
 
 ### Blob
 
@@ -240,6 +240,7 @@ Example:
 - Versioned serialization format, explicitly storing version numbers to the serialized data.
 - Reference: [Boost Serialization](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/index.html)
 - Archive starts with the header `011673657269616c697a6174696f6e3a3a617263686976650000` which translates to `\x01\x16serialization::archive\x00\x00`. The `[-2]` byte enables tracking (tracking is not supported in this lib), `[-1]` is a version of root element.
+- [Basic archive](https://www.boost.org/doc/libs/1_66_0/libs/serialization/src/basic_oarchive.cpp)
 
 ### Versioning
 - Schemes are versioned based on the C++ type, this python lib identifies the object based on its type and parameters (e.g. container + element type). Once the version for particular type has been stored to the stream, it is not stored again. In C++ this is handled by the type system and compiler. In this library we have to explicitly track whether the type version has been already stored. 
@@ -271,6 +272,7 @@ Example:
 - After version follows `uvarint(length)`
 - Version of the element follows as `uvarint(element_version)` (exception for case of raw containers = statically allocated like Key64)
 - Elements follow. If element is serialized for the first time, same rules apply for the versioning - version is stored.
+- Example: `(tr, v), collection_size, element_version, (obj_tr, obj_v), obj1, obj2, ...`
 
 ### Tuple
 
@@ -281,6 +283,7 @@ Example:
 
 - Versioned
 - Format: `uvarint(variant_code) || field`
+- Example: `(tr, v), which, (tr, v), val`
 
 ### Message
 
