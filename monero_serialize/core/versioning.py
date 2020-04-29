@@ -1,6 +1,7 @@
 from . import obj_helper as oh
 from . import base_types as bt
 from . import message_types as mt
+from typing import Dict, Tuple, List, Optional, Any
 
 
 class TypeWrapper(object):
@@ -81,7 +82,7 @@ class VersionDatabase(object):
     Boost version database - singletons
     """
     def __init__(self):
-        self.db = {}  # type: dict[type -> tuple[int, int]]
+        self.db = {}  # type: Dict[type, Tuple[int, int]]
 
     def is_versioned(self, twrap):
         """
@@ -102,7 +103,7 @@ class VersionDatabase(object):
 
 class VersionSetting(object):
     def __init__(self, db_init=None):
-        self.db = {}  # type: dict[type -> int]
+        self.db = {}  # type: Dict[type, int]
         self.current_idx = 0
         self.iter_keys = None
 

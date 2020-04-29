@@ -328,6 +328,8 @@ class Archive(object):
     async def message(self, msg, msg_type=None, use_version=None):
         """
         Loads/dumps message
+        Format: *fields
+
         :param msg:
         :param msg_type:
         :param use_version:
@@ -525,6 +527,9 @@ class Archive(object):
     async def _dump_container(self, writer, container, container_type, params=None):
         """
         Dumps container of elements to the writer.
+        Format:
+            - `uvarint(len) || *elements` for containers of unknown size
+            - `*elements` for containers of a fixed size
 
         :param writer:
         :param container:
@@ -590,6 +595,7 @@ class Archive(object):
     async def _dump_tuple(self, writer, elem, elem_type, params=None):
         """
         Dumps tuple of elements to the writer.
+        Format: `uvarint(len) || *elements`
 
         :param writer:
         :param elem:
@@ -688,6 +694,8 @@ class Archive(object):
         Dumps variant type to the writer.
         Supports both wrapped and raw variant.
 
+        Format: `variant-code-1B || field`
+
         :param writer:
         :param elem:
         :param elem_type:
@@ -745,6 +753,10 @@ async def dump_blob(writer, elem, elem_type, params=None):
     Dumps blob message to the writer.
     Supports both blob and raw value.
 
+    Format:
+      - `uvarint(len) || data` for data with unknown size
+      - `data` for data with a fixed size
+
     :param writer:
     :param elem:
     :param elem_type:
@@ -792,6 +804,8 @@ async def load_blob(reader, elem_type, params=None, elem=None):
 async def dump_unicode(writer, elem):
     """
     Dumps string as UTF8 encoded string
+    Format: `uvarint(len) || input.encode('utf8')
+
     :param writer:
     :param elem:
     :return:

@@ -158,3 +158,166 @@ class UnsignedTxSet(x.MessageType): pass;
 class SignedTxSet(x.MessageType): pass;
 class MultisigTxSet(x.MessageType): pass;
 ```
+
+
+# Serialization formats
+
+## Blockchain format
+
+The BC serialization format is scheme-oriented, i.e., you have to provide the scheme according to which 
+serialize/deserialize the data. Scheme specifies how are fields composed, whether the size of containers is 
+fixed (and then also the size is specified by the scheme) or not.
+
+The format is not versioned, i.e., serialization format does not store explicit version numbers which would affect serialization scheme.
+
+### Uvarint
+
+- Variable length integer encoded by 7-bit chunks. 
+- The MSB indicates whether there are more octets (1) or it is the last one (0).
+- 0 - 0x7f encoded in 1 byte, 0x80 - 0x3fff encoded in 2 bytes, ...
+
+Example:
+- 0x0f -> 0f
+- 0x1000 -> 8020
+- 0xffff -> ffff03
+- 0xffffff -> ffffff07
+
+### UInt
+
+- Fixed width integer, little endian encoded
+
+Example:
+
+- 0x0f Width 4 = 0f000000
+- 0x1000 Width 4 = 001000
+- 0xffffff Width 4 = ffffff00
+
+### Blob
+
+- Binary bytes can have either fixed size or variable size.
+- Variable size format: `uvarint(lenght) || data`
+- Fixed-size format: `data`
+- Typical example of a fixed-width blob is EC point or scalar, which has 32 bytes
+
+### Unicode string
+
+- Format: `uvarint(length) || input.encode("utf8")`
+
+### Container
+
+- Variable size format: `uvarint(length) || *elements`
+- Fixed size format: `*elements`
+- Elements are serialized according to the scheme of the element. 
+- All elements are of the same type which is specified by the schema of the container
+
+### Tuple
+
+- Tuple is heterogenous
+- Format: `uvarint(length) || *elements`
+- Each element is serialized according to the scheme specified in the tuple
+
+### Variant
+
+- Similar to union from C, stores precisely one data type out of many
+- Variants are identified by 1 byte code
+- Format: `uint(variant_code) || variant_object`
+- Variant object is serialized according to the scheme corresponding for the particular variant
+
+### Message / object
+
+- Collection of heterogenous fields
+- Fields are serialized according to the scheme
+- Field ordering is fixed by the message scheme
+- Field have names, but no name nor number of fields are serialized 
+- Messages serialization scheme can vary based on the version number provided from outside
+
+
+
+## Boost serialization
+
+- Mainly used by the wallet and for internal purposes.
+- Scheme oriented format. Scheme is required to understand the serialized data.
+- Versioned serialization format, explicitly storing version numbers to the serialized data.
+- Reference: [Boost Serialization](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/index.html)
+- Archive starts with the header `011673657269616c697a6174696f6e3a3a617263686976650000` which translates to `\x01\x16serialization::archive\x00\x00`. The `[-2]` byte enables tracking (tracking is not supported in this lib), `[-1]` is a version of root element.
+
+### Versioning
+- Schemes are versioned based on the C++ type, this python lib identifies the object based on its type and parameters (e.g. container + element type). Once the version for particular type has been stored to the stream, it is not stored again. In C++ this is handled by the type system and compiler. In this library we have to explicitly track whether the type version has been already stored. 
+- Elementary types are not versioned (int, uvarint, unicode)
+- Versioning can be disabled in the complex types 
+- Version is stored as the following tuple: `(uvarint(tracking) || uvarint(version)`
+  - tracking relates to the [Boost Object Tracking](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/special.html#objecttracking), advanced construct used with pointers (tracking by memory address), alpha version of tracking is supported for reading the archive.
+  - tracking in C++ code: `BOOST_CLASS_TRACKING`
+  - Versioning in the [Boost docs](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/tutorial.html#versioning)
+  - If tracking is enabled, the format is: `(uvarint(tracking) || uvarint(version) || uvarint(object_id)`
+
+### Uvarint
+
+- First byte encodes length and sign. Supports byte widths: 0-8. 2 byte positive number: 0x2, 2 byte negative number: 0xfe
+- Encoding in 8bit chunks, little endian.
+- Uvarint serialization scheme defined by Monero code.
+
+### Unicode 
+
+- Format: `uvarint(length) || input.encode("utf8")`
+
+### Blob
+
+- Format: `uvarint(length) || data`
+
+### Container
+
+- Primitive type containers are not versioned, in general, container is versioned.
+- After version follows `uvarint(length)`
+- Version of the element follows as `uvarint(element_version)` (exception for case of raw containers = statically allocated like Key64)
+- Elements follow. If element is serialized for the first time, same rules apply for the versioning - version is stored.
+
+### Tuple
+
+- Versioned
+- Stored without size information - obtained from the scheme
+
+### Variant
+
+- Versioned
+- Format: `uvarint(variant_code) || field`
+
+### Message
+
+- Versioned
+- Stores field in a defined order, without storing field names or field types. Types are derived from the scheme.
+- Fields serialized recursively.
+
+## JSONRPC 
+
+- Monero serialization format, with either binary or JSON form
+- Defines serialization types supported by the format, each supported serialization primitive has a tag.
+  - signed and unsigned integers of a fixed widths of: 18, 16,32, 64 bits
+  - boolean 
+  - double
+  - string
+  - object
+  - array
+
+- Root of archive starts with the `0x01011101 || 0x01020101 || 0x1`, i.e, signature A, signature B, format version
+- Archive can be parsed as JSON, i.e., without scheme.
+
+### Integers
+- Integer to encode is N, then the format encodes `N<<2 | size_flag` as little endian
+- Flags 0, 1, 2, 3 correspond to 1, 2, 4, 8 byte integers correspondingly 
+
+### String
+- Format: `uvarint(length) || data`
+
+### Array
+- Serializes `element_type | SerializeType.ARRAY_FLAG` as integer, where `element_type` is the object tag.
+- Serializes length of the container
+- Serializes each element recursively
+
+### Section / object
+- Correspond to JSON dictionaries with string keys
+- Format: `uvarint(length) || serialize_string(section_1) || serialize_storage(value_1)`
+- The `serialize_storage` serializes:
+  - object tag if object type does not have `ARRAY_FLAG` flag
+  - object itself recursively
+  
