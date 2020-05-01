@@ -172,7 +172,7 @@ The format is not versioned, i.e., serialization format does not store explicit 
 
 ### Uvarint
 
-- Variable length integer encoded by 7-bit chunks. 
+- Variable length integer encoded by 7-bit chunks, little endian. 
 - The MSB indicates whether there are more octets (1) or it is the last one (0).
 - 0 - 0x7f encoded in 1 byte, 0x80 - 0x3fff encoded in 2 bytes, ...
 
@@ -246,11 +246,11 @@ Example:
 - Schemes are versioned based on the C++ type, this python lib identifies the object based on its type and parameters (e.g. container + element type). Once the version for particular type has been stored to the stream, it is not stored again. In C++ this is handled by the type system and compiler. In this library we have to explicitly track whether the type version has been already stored. 
 - Elementary types are not versioned (int, uvarint, unicode)
 - Versioning can be disabled in the complex types 
-- Version is stored as the following tuple: `(uvarint(tracking) || uvarint(version)`
+- Version is stored as the following tuple: `(uvarint(tracking) || uvarint(version))`
   - tracking relates to the [Boost Object Tracking](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/special.html#objecttracking), advanced construct used with pointers (tracking by memory address), alpha version of tracking is supported for reading the archive.
   - tracking in C++ code: `BOOST_CLASS_TRACKING`
   - Versioning in the [Boost docs](https://www.boost.org/doc/libs/1_61_0/libs/serialization/doc/tutorial.html#versioning)
-  - If tracking is enabled, the format is: `(uvarint(tracking) || uvarint(version) || uvarint(object_id)`
+  - If tracking is enabled, the format is: `(uvarint(tracking) || uvarint(version) || uvarint(object_id))`
 
 ### Uvarint
 
