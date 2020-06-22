@@ -43,9 +43,10 @@ Thanks for your support!
 86KCjujm1Hp4dD2uyZdXjHQr5e5aNujG6LcunA8iQYjx4AwRorVLDpHMKKmrKQfAPFC5KCKPpjdax3NEbExBRTnSTS1QXWA
 ```
 
+
 # Advanced usage
 
-### Archive interface
+## Archive interface
 
 ```python
 import binascii
@@ -65,7 +66,7 @@ ar2 = x.Archive(x.MemoryReaderWriter(writer.buffer), False)
 await ar2.message(msg2)
 ```
 
-### Symmetric Boost archive
+## Symmetric Boost archive
 
 ```python
 import binascii
