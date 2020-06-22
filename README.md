@@ -39,7 +39,9 @@ test_deser = await x.load_message(x.MemoryReaderWriter(writer.buffer), xmr.TxinG
 # Donations
 Thanks for your support!
 
-47BEukN83whUdvuXbaWmDDQLYNUpLsvFR2jioQtpP5vD8b3o74b9oFgQ3KFa3ibjbwBsaJEehogjiUCfGtugUGAuJAfbh1Z
+```
+86KCjujm1Hp4dD2uyZdXjHQr5e5aNujG6LcunA8iQYjx4AwRorVLDpHMKKmrKQfAPFC5KCKPpjdax3NEbExBRTnSTS1QXWA
+```
 
 # Advanced usage
 
