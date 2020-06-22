@@ -25,12 +25,15 @@ docs_extras = [
 
 
 try:
-    import pypandoc
+    import pypandoc, io
     long_description = pypandoc.convert('README.md', 'rst')
     long_description = long_description.replace("\r", '')
+    with io.open('README.rst', 'w+', encoding='utf-8') as f:
+        f.write(long_description)
 
-except(IOError, ImportError):
+except(IOError, ImportError) as e:
     import io
+    print("ERROR in readme conversion", e)
     with io.open('README.md', encoding='utf-8') as f:
         long_description = f.read()
 

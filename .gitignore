@@ -92,4 +92,5 @@ ENV/
 .idea
 
 alembic.ini
+README.rst
 
