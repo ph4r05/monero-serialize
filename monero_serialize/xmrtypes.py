@@ -643,6 +643,21 @@ class Block(BlockHeader):
     ]
 
 
+class TransactionMetaData(x.MessageType):
+    MFIELDS = [
+        ('tx_id', x.UInt64),
+        ('unlock_time', x.UInt64),
+        ('block_id', x.UInt64),
+    ]
+
+
+class TxIndex(x.MessageType):
+    MFIELDS = [
+        ('key', Hash),
+        ('data', TransactionMetaData),
+    ]
+
+
 class AccountPublicAddress(x.MessageType):
     __slots__ = ['m_spend_public_key', 'm_view_public_key']
     MFIELDS = [
