@@ -107,6 +107,8 @@ class TxInV(x.VariantType): pass;
 class TxOut(x.MessageType): pass;
 class TransactionPrefix(x.MessageType): pass;
 class TransactionPrefixExtraBlob(TransactionPrefix): pass;
+class TxIndex(x.MessageType): pass;
+class TransactionMetaData(x.MessageType): pass;
 
 #
 # rctTypes.h
