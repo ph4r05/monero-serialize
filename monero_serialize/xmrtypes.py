@@ -352,7 +352,7 @@ class RctSigBase(x.MessageType):
         if self.type != RctType.Full and self.type != RctType.FullBulletproof and \
                 self.type != RctType.Simple and self.type != RctType.SimpleBulletproof and \
                 self.type != RctType.Bulletproof and self.type != RctType.Bulletproof2 and \
-                self.type != RctType.RCTTypeCLSAG and self.type != RctType.RCTTypeBulletproofPlus:
+                self.type != RctType.CLSAG and self.type != RctType.BulletproofPlus:
             raise ValueError('Unknown type')
 
         await self._msg_field(ar, idx=1)
@@ -374,7 +374,7 @@ class RctSigBase(x.MessageType):
             raise ValueError('EcdhInfo size mismatch')
 
         for i in range(outputs):
-            if self.type in (RctType.Bulletproof2, RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus):
+            if self.type in (RctType.Bulletproof2, RctType.CLSAG, RctType.BulletproofPlus):
                 am8 = [self.ecdhInfo[i].amount[0:8] if ar.writing else bytearray(0)]
                 await ar.field(eref(am8, 0), Hash8)
                 if not ar.writing:
@@ -410,15 +410,15 @@ class RctType(object):
     Simple = 2
     Bulletproof = 3
     Bulletproof2 = 4
-    RCTTypeCLSAG = 5
-    RCTTypeBulletproofPlus = 6
+    CLSAG = 5
+    BulletproofPlus = 6
 
     FullBulletproof = 3     # pre v9, deprecated
     SimpleBulletproof = 4   # pre v9, deprecated
 
 
 def is_rct_bp(rct_type):
-    return rct_type in (RctType.Bulletproof, RctType.Bulletproof2, RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus)
+    return rct_type in (RctType.Bulletproof, RctType.Bulletproof2, RctType.CLSAG, RctType.BulletproofPlus)
 
 
 class RctSigPrunable(x.MessageType):
@@ -448,10 +448,10 @@ class RctSigPrunable(x.MessageType):
 
         if type != RctType.Full and type != RctType.Bulletproof and \
                 type != RctType.Simple and type != RctType.Bulletproof2 and \
-                type != RctType.RCTTypeCLSAG and type != RctType.RCTTypeBulletproofPlus:
+                type != RctType.CLSAG and type != RctType.BulletproofPlus:
             raise ValueError('Unknown type')
 
-        if type == RctType.RCTTypeBulletproofPlus:
+        if type == RctType.BulletproofPlus:
             bps = [0]
             if ar.writing:
                 bps[0] = len(self.bulletproofs_plus)
@@ -494,7 +494,7 @@ class RctSigPrunable(x.MessageType):
                 await ar.field(elem=eref(self.rangeSigs, i), elem_type=RangeSig)
             await ar.end_array()
 
-        if type in (RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus):
+        if type in (RctType.CLSAG, RctType.BulletproofPlus):
             await ar.tag('CLSAGs')
             await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'CLSAGs'), elem_type=CLSAG)
