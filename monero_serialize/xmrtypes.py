@@ -255,6 +255,15 @@ class MgSig(x.MessageType):
     ]
 
 
+class CLSAG(x.MessageType):
+    __slots__ = ['s', 'c1', 'I', 'D']
+    MFIELDS = [
+        ('s', KeyV),
+        ('c1', ECKey),
+        ('D', ECKey),
+    ]
+
+
 class RangeSig(x.MessageType):
     __slots__ = ['asig', 'Ci']
     MFIELDS = [
@@ -277,6 +286,24 @@ class Bulletproof(x.MessageType):
         ('a', ECKey),
         ('b', ECKey),
         ('t', ECKey),
+    ]
+
+    async def boost_serialize(self, ar, version=None):
+        await ar.message_fields(self, [('V', KeyV)] + self.MFIELDS)
+        return self
+
+
+class BulletproofPlus(x.MessageType):
+    __slots__ = ['V', "A", "A1", "B", "r1", "s1", "d1", "V", "L", "R"]
+    MFIELDS = [
+        ("A", ECKey),
+        ("A1", ECKey),
+        ("B", ECKey),
+        ("r1", ECKey),
+        ("s1", ECKey),
+        ("d1", ECKey),
+        ("L", KeyV),
+        ("R", KeyV),
     ]
 
     async def boost_serialize(self, ar, version=None):
@@ -323,7 +350,9 @@ class RctSigBase(x.MessageType):
         if self.type == RctType.Null:
             return
         if self.type != RctType.Full and self.type != RctType.FullBulletproof and \
-                self.type != RctType.Simple and self.type != RctType.SimpleBulletproof:
+                self.type != RctType.Simple and self.type != RctType.SimpleBulletproof and \
+                self.type != RctType.Bulletproof and self.type != RctType.Bulletproof2 and \
+                self.type != RctType.RCTTypeCLSAG and self.type != RctType.RCTTypeBulletproofPlus:
             raise ValueError('Unknown type')
 
         await self._msg_field(ar, idx=1)
@@ -345,7 +374,7 @@ class RctSigBase(x.MessageType):
             raise ValueError('EcdhInfo size mismatch')
 
         for i in range(outputs):
-            if self.type == RctType.Bulletproof2:
+            if self.type in (RctType.Bulletproof2, RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus):
                 am8 = [self.ecdhInfo[i].amount[0:8] if ar.writing else bytearray(0)]
                 await ar.field(eref(am8, 0), Hash8)
                 if not ar.writing:
@@ -381,21 +410,25 @@ class RctType(object):
     Simple = 2
     Bulletproof = 3
     Bulletproof2 = 4
+    RCTTypeCLSAG = 5
+    RCTTypeBulletproofPlus = 6
 
     FullBulletproof = 3     # pre v9, deprecated
     SimpleBulletproof = 4   # pre v9, deprecated
 
 
 def is_rct_bp(rct_type):
-    return rct_type in (RctType.Bulletproof, RctType.Bulletproof2)
+    return rct_type in (RctType.Bulletproof, RctType.Bulletproof2, RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus)
 
 
 class RctSigPrunable(x.MessageType):
-    __slots__ = ['rangeSigs', 'bulletproofs', 'MGs', 'pseudoOuts']
+    __slots__ = ['rangeSigs', 'bulletproofs', 'bulletproofs_plus', 'MGs', 'CLSAGs', 'pseudoOuts']
     MFIELDS = [
         ('rangeSigs', x.ContainerType, RangeSig),
         ('bulletproofs', x.ContainerType, Bulletproof),
+        ('bulletproofs_plus', x.ContainerType, BulletproofPlus),
         ('MGs', x.ContainerType, MgSig),
+        ('CLSAGs', x.ContainerType, CLSAG),
         ('pseudoOuts', KeyV),
     ]
 
@@ -414,10 +447,25 @@ class RctSigPrunable(x.MessageType):
             return True
 
         if type != RctType.Full and type != RctType.Bulletproof and \
-                type != RctType.Simple and type != RctType.Bulletproof2:
+                type != RctType.Simple and type != RctType.Bulletproof2 and \
+                type != RctType.RCTTypeCLSAG and type != RctType.RCTTypeBulletproofPlus:
             raise ValueError('Unknown type')
 
-        if is_rct_bp(type):
+        if type == RctType.RCTTypeBulletproofPlus:
+            bps = [0]
+            if ar.writing:
+                bps[0] = len(self.bulletproofs_plus)
+            await ar.field(elem=eref(bps, 0), elem_type=x.UVarintType)
+
+            await ar.tag('bpp')
+            await ar.begin_array()
+            await ar.prepare_container(bps[0], eref(self, 'bulletproofs_plus'), elem_type=Bulletproof)
+
+            for i in range(bps[0]):
+                await ar.field(elem=eref(self.bulletproofs_plus, i), elem_type=Bulletproof)
+            await ar.end_array()
+
+        elif is_rct_bp(type):
             await ar.tag('bp')
             await ar.begin_array()
             bps = [0]
@@ -446,45 +494,74 @@ class RctSigPrunable(x.MessageType):
                 await ar.field(elem=eref(self.rangeSigs, i), elem_type=RangeSig)
             await ar.end_array()
 
-        await ar.tag('MGs')
-        await ar.begin_array()
-
-        # We keep a byte for size of MGs, because we don't know whether this is
-        # a simple or full rct signature, and it's starting to annoy the hell out of me
-        is_full = type == RctType.Full
-        mg_elements = inputs if not is_full else 1
-        await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
-        if len(self.MGs) != mg_elements:
-            raise ValueError('MGs size mismatch')
-
-        for i in range(mg_elements):
-            # We save the MGs contents directly, because we want it to save its
-            # arrays and matrices without the size prefixes, and the load can't
-            # know what size to expect if it's not in the data
-            await ar.begin_object()
-            await ar.tag('ss')
+        if type in (RctType.RCTTypeCLSAG, RctType.RCTTypeBulletproofPlus):
+            await ar.tag('CLSAGs')
             await ar.begin_array()
+            await ar.prepare_container(inputs, eref(self, 'CLSAGs'), elem_type=CLSAG)
+            if len(self.CLSAGs) != inputs:
+                raise ValueError('CLSAGs size mismatch')
 
-            await ar.prepare_container(mixin + 1, eref(self.MGs[i], 'ss'), elem_type=KeyM)
-            if ar.writing and len(self.MGs[i].ss) != mixin + 1:
-                raise ValueError('MGs size mismatch')
-
-            for j in range(mixin + 1):
+            for i in range(inputs):
+                # We save the CLSAGs contents directly, because we want it to save its
+                # arrays without the size prefixes, and the load can't know what size
+                # to expect if it's not in the data
+                await ar.begin_object()
+                await ar.tag('s')
                 await ar.begin_array()
-                mg_ss2_elements = 1 + (1 if not is_full else inputs)
-                await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
+                await ar.prepare_container(mixin + 1, eref(self.CLSAGs[i], 's'), elem_type=KeyV)
+                if len(self.CLSAGs[i].s) != mixin + 1:
+                    raise ValueError('CLSAGs[i].s size mismatch')
 
-                if ar.writing and len(self.MGs[i].ss[j]) != mg_ss2_elements:
-                    raise ValueError('MGs size mismatch 2')
-
-                for k in range(mg_ss2_elements):
-                    await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyV.ELEM_TYPE)
+                for j in range(mixin + 1):
+                    await ar.field(eref(self.CLSAGs[i].s, j), elem_type=KeyV.ELEM_TYPE)
                 await ar.end_array()
 
-            await ar.tag('cc')
-            await ar.field(eref(self.MGs[i], 'cc'), elem_type=ECKey)
-            await ar.end_object()
-        await ar.end_array()
+                await ar.tag('c1')
+                await ar.field(eref(self.CLSAGs[i], 'c1'), elem_type=ECKey)
+                await ar.tag('D')
+                await ar.field(eref(self.CLSAGs[i], 'D'), elem_type=ECKey)
+                await ar.end_object()
+
+        else:
+            await ar.tag('MGs')
+            await ar.begin_array()
+
+            # We keep a byte for size of MGs, because we don't know whether this is
+            # a simple or full rct signature, and it's starting to annoy the hell out of me
+            is_full = type == RctType.Full
+            mg_elements = inputs if not is_full else 1
+            await ar.prepare_container(mg_elements, eref(self, 'MGs'), elem_type=MgSig)
+            if len(self.MGs) != mg_elements:
+                raise ValueError('MGs size mismatch')
+
+            for i in range(mg_elements):
+                # We save the MGs contents directly, because we want it to save its
+                # arrays and matrices without the size prefixes, and the load can't
+                # know what size to expect if it's not in the data
+                await ar.begin_object()
+                await ar.tag('ss')
+                await ar.begin_array()
+
+                await ar.prepare_container(mixin + 1, eref(self.MGs[i], 'ss'), elem_type=KeyM)
+                if ar.writing and len(self.MGs[i].ss) != mixin + 1:
+                    raise ValueError('MGs size mismatch')
+
+                for j in range(mixin + 1):
+                    await ar.begin_array()
+                    mg_ss2_elements = 1 + (1 if not is_full else inputs)
+                    await ar.prepare_container(mg_ss2_elements, eref(self.MGs[i].ss, j), elem_type=KeyM.ELEM_TYPE)
+
+                    if ar.writing and len(self.MGs[i].ss[j]) != mg_ss2_elements:
+                        raise ValueError('MGs size mismatch 2')
+
+                    for k in range(mg_ss2_elements):
+                        await ar.field(eref(self.MGs[i].ss[j], k), elem_type=KeyV.ELEM_TYPE)
+                    await ar.end_array()
+
+                await ar.tag('cc')
+                await ar.field(eref(self.MGs[i], 'cc'), elem_type=ECKey)
+                await ar.end_object()
+            await ar.end_array()
 
         if type in (RctType.Bulletproof, RctType.Bulletproof2):
             await ar.begin_array()
