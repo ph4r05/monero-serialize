@@ -786,7 +786,9 @@ async def load_blob(reader, elem_type, params=None, elem=None):
     """
     ivalue = elem_type.SIZE if elem_type.FIX_SIZE else await load_uvarint(reader)
     fvalue = bytearray(ivalue)
-    await reader.areadinto(fvalue)
+    nread = await reader.areadinto(fvalue)
+    if nread != ivalue:
+        raise ValueError('Invalid buffer size read, nread: %s vs expecting: %s' % (nread, ivalue))
 
     if elem is None:
         return fvalue  # array by default
