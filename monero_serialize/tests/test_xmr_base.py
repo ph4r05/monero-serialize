@@ -358,7 +358,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         tsx_hash = b'feef88257730d444bff75ffa9f4c985d06810b544b247cfe8105070a0f897dc9'
         tsx_bin = base64.b16decode(tsx_hex, True)
         reader = x.MemoryReaderWriter(bytearray(tsx_bin))
-        ar = x.Archive(reader, False, xmr.hf_versions(9))
+        ar = x.Archive(reader, False, xmr.hf_versions(13))
 
         msg = xmr.Transaction()
         await ar.message(msg)
@@ -388,7 +388,7 @@ class XmrTypesBaseTest(aiounittest.AsyncTestCase):
         tsx_hash = b'5ca2e704d65055860fc96c94858cffdcccae744c533407d7ccaa6c03dbea95fd'
         tsx_bin = base64.b16decode(tsx_hex, True)
         reader = x.MemoryReaderWriter(bytearray(tsx_bin))
-        ar = x.Archive(reader, False, xmr.hf_versions(9))
+        ar = x.Archive(reader, False, xmr.hf_versions(15))
 
         msg = xmr.Transaction()
         await ar.message(msg)
