@@ -459,10 +459,10 @@ class RctSigPrunable(x.MessageType):
 
             await ar.tag('bpp')
             await ar.begin_array()
-            await ar.prepare_container(bps[0], eref(self, 'bulletproofs_plus'), elem_type=Bulletproof)
+            await ar.prepare_container(bps[0], eref(self, 'bulletproofs_plus'), elem_type=BulletproofPlus)
 
             for i in range(bps[0]):
-                await ar.field(elem=eref(self.bulletproofs_plus, i), elem_type=Bulletproof)
+                await ar.field(elem=eref(self.bulletproofs_plus, i), elem_type=BulletproofPlus)
             await ar.end_array()
 
         elif is_rct_bp(type):
@@ -472,7 +472,7 @@ class RctSigPrunable(x.MessageType):
             if ar.writing:
                 bps[0] = len(self.bulletproofs)
 
-            if type == RctType.Bulletproof2:
+            if type in (RctType.Bulletproof2, RctType.CLSAG):
                 await ar.field(elem=eref(bps, 0), elem_type=x.UVarintType)
             else:
                 await ar.field(elem=eref(bps, 0), elem_type=x.UInt32)
@@ -563,7 +563,7 @@ class RctSigPrunable(x.MessageType):
                 await ar.end_object()
             await ar.end_array()
 
-        if type in (RctType.Bulletproof, RctType.Bulletproof2):
+        if type in (RctType.Bulletproof, RctType.Bulletproof2, RctType.CLSAG, RctType.BulletproofPlus):
             await ar.begin_array()
             await ar.prepare_container(inputs, eref(self, 'pseudoOuts'), elem_type=KeyV)
             if ar.writing and len(self.pseudoOuts) != inputs:
