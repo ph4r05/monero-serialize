@@ -16,6 +16,13 @@ from .core import versioning
 #
 
 
+class ViewTag(x.BlobType):
+    __slots__ = ['data']
+    DATA_ATTR = 'data'
+    FIX_SIZE = 1
+    SIZE = 1
+
+
 class Hash(x.BlobType):
     __slots__ = ['data']
     DATA_ATTR = 'data'
@@ -81,6 +88,15 @@ class TxoutToKey(x.MessageType):
     ]
 
 
+class TxoutToTaggedKey(x.MessageType):
+    __slots__ = ['key', 'view_tag']
+    VARIANT_CODE = 0x3
+    MFIELDS = [
+        ('key', ECPublicKey),
+        ('view_tag', ViewTag),
+    ]
+
+
 class TxoutToScriptHash(x.MessageType):
     __slots__ = ['hash']
     VARIANT_CODE = 0x1
@@ -94,6 +110,7 @@ class TxoutTargetV(x.VariantType):
         ('txout_to_script', TxoutToScript),
         ('txout_to_scripthash', TxoutToScriptHash),
         ('txout_to_key', TxoutToKey),
+        ('txout_to_tagged_key', TxoutToTaggedKey),
     ]
 
 
